@@ -1,0 +1,46 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Backend
+backend/.venv/
+backend/venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.coverage
+backend/htmlcov/
+backend/*.db
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker / local volumes
+postgres_data/
+minio_data/
+
+# Misc
+coverage/
