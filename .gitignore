@@ -28,6 +28,11 @@ backend/.coverage
 backend/htmlcov/
 backend/*.db
 
+
+node_modules/
+package-lock.json
+package.json
+
 # Python
 *.pyc
 *.pyo
