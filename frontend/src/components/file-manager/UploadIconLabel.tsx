@@ -1,4 +1,5 @@
 import { FileUp } from "lucide-react";
+import { formatFileSize } from "../../utils/format";
 
 type Props = {
   file: File | null;
@@ -13,7 +14,7 @@ export function UploadIconLabel({ file }: Props) {
       </span>
       <span className="mt-1 text-xs text-slate-500">
         {file
-          ? `${(file.size / 1024).toFixed(1)} KB`
+          ? formatFileSize(file.size)
           : "선택한 뒤 아래 버튼으로 이 폴더에 올립니다."}
       </span>
     </>

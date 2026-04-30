@@ -7,60 +7,46 @@ from app.blob_deletion import apply_blob_deref_and_cleanup_s3, collect_subtree_f
 from app.config import S3_BUCKET_NAME
 from app.db import get_db_connection
 from app.routes import bp
-from app.storage import ensure_bucket_exists, get_s3_client
+from app.storage import get_s3_client
 
 
 @bp.route("/nodes", methods=["GET"])
 def get_nodes():
     parent_id = request.args.get("parent_id")
 
-    query_root = """
-    SELECT
-        node_id,
-        parent_id,
-        node_type,
-        name,
-        hash_id,
-        created_at,
-        updated_at
-    FROM fs_nodes
-    WHERE parent_id IS NULL
-    ORDER BY node_type DESC, name ASC
-"""
-
-    query_child = """
-    SELECT
-        node_id,
-        parent_id,
-        node_type,
-        name,
-        hash_id,
-        created_at,
-        updated_at
-    FROM fs_nodes
-    WHERE parent_id = %s
-    ORDER BY node_type DESC, name ASC
-"""
-
     with closing(get_db_connection()) as conn:
         with conn.cursor() as cur:
             if parent_id:
-                cur.execute(query_child, (parent_id,))
+                cur.execute(
+                    """
+                    SELECT node_id, parent_id, node_type, name, hash_id, created_at, updated_at
+                    FROM fs_nodes
+                    WHERE parent_id = %s
+                    ORDER BY node_type DESC, name ASC
+                    """,
+                    (parent_id,),
+                )
             else:
-                cur.execute(query_root)
-
+                cur.execute(
+                    """
+                    SELECT node_id, parent_id, node_type, name, hash_id, created_at, updated_at
+                    FROM fs_nodes
+                    WHERE parent_id IS NULL
+                    ORDER BY node_type DESC, name ASC
+                    """
+                )
             rows = cur.fetchall()
+
     return jsonify(rows)
 
 
 @bp.route("/nodes/<node_id>/download", methods=["GET"])
 def download_node(node_id):
-    ensure_bucket_exists()
     with closing(get_db_connection()) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT n.name, n.node_type, b.s3_key, b.mime_type
+                SELECT n.name, b.s3_key, b.mime_type
                 FROM fs_nodes n
                 JOIN file_blobs b ON n.hash_id = b.hash_id
                 WHERE n.node_id = %s AND n.node_type = 'file'
@@ -76,6 +62,7 @@ def download_node(node_id):
     obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=row["s3_key"])
     body = obj["Body"].read()
     mime = row["mime_type"] or "application/octet-stream"
+
     return send_file(
         io.BytesIO(body),
         mimetype=mime,
@@ -86,28 +73,20 @@ def download_node(node_id):
 
 @bp.route("/nodes/<node_id>", methods=["DELETE"])
 def delete_node(node_id):
-    ensure_bucket_exists()
     with closing(get_db_connection()) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT 1 FROM fs_nodes WHERE node_id = %s",
-                (node_id,),
-            )
+            cur.execute("SELECT 1 FROM fs_nodes WHERE node_id = %s", (node_id,))
             if not cur.fetchone():
                 return jsonify({"message": "Node not found"}), 404
 
             counts = collect_subtree_file_hashes(cur, node_id)
-
             cur.execute("DELETE FROM fs_nodes WHERE node_id = %s", (node_id,))
-
             removed_hashes = apply_blob_deref_and_cleanup_s3(cur, counts)
 
             conn.commit()
 
-    return jsonify(
-        {
-            "message": "deleted",
-            "dereferenced_blob_hashes": list(counts.keys()),
-            "removed_blobs_from_storage": removed_hashes,
-        }
-    )
+    return jsonify({
+        "message": "deleted",
+        "dereferenced_blob_hashes": list(counts.keys()),
+        "removed_blobs_from_storage": removed_hashes,
+    })

@@ -17,4 +17,5 @@ COPY . /app
 
 EXPOSE 5000
 
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+# 프로덕션 기본값: Gunicorn (docker-compose.yml에서 flask run 으로 override)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "run:app"]

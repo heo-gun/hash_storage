@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:alpine
+    container_name: fms-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # 프로덕션: DB 포트 외부 노출 안 함
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: ./backend
+    container_name: fms-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FLASK_APP: run.py
+      FLASK_ENV: production
+      FLASK_DEBUG: "0"
+
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+
+      # AWS S3: IAM Role 사용 시 ACCESS_KEY/SECRET_KEY 불필요
+      S3_ENDPOINT_URL: ""
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      S3_REGION: ${S3_REGION:-ap-northeast-2}
+      S3_USE_SSL: "true"
+    # 포트 외부 노출 없음 (Nginx가 내부 프록시)
+    networks:
+      - internal
+    # Gunicorn: workers = (2 * CPU) + 1 권장, 최소 2
+    command: >
+      gunicorn
+        --bind 0.0.0.0:5000
+        --workers ${GUNICORN_WORKERS:-3}
+        --timeout 120
+        --access-logfile -
+        --error-logfile -
+        run:app
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: fms-frontend
+    restart: always
+    networks:
+      - internal
+
+  nginx:
+    image: nginx:alpine
+    container_name: fms-nginx
+    restart: always
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+  certbot_webroot:
+
+networks:
+  internal:
+    driver: bridge
