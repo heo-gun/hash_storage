@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python \"C:\\\\in_kaist\\\\hash_storage\\\\.claude\\\\worktrees\\\\focused-rosalind-81b198\\\\scripts\\\\gen_pdf.py\")"
+    ]
+  }
+}
