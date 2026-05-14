@@ -38,8 +38,10 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
 
-      # AWS S3: IAM Role 사용 시 ACCESS_KEY/SECRET_KEY 불필요
+      # AWS S3: IAM Role 사용 시 빈 값으로 명시 (config.py 기본값 덮어쓰기 위함)
       S3_ENDPOINT_URL: ""
+      S3_ACCESS_KEY: ""
+      S3_SECRET_KEY: ""
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
       S3_REGION: ${S3_REGION:-ap-northeast-2}
       S3_USE_SSL: "true"
