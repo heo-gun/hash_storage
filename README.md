@@ -132,17 +132,43 @@ MVP 이후 아래 단계로 서비스를 확장할 계획입니다.
 
 > **설계 주의점**: `file_blobs`는 전역 dedup 레이어로 유지하되, `fs_nodes`는 사용자별로 완전히 분리. 동일 파일을 다른 유저가 올려도 S3에는 하나만 존재하면서 접근 권한은 분리됨.
 
-### Phase 3 — E2EE 공유 (3~5주)
-- [ ] 공유 링크 생성 (만료 시간, 비밀번호 옵션)
-- [ ] Web Crypto API (AES-GCM) 기반 클라이언트사이드 암호화
-- [ ] 암호화 키를 URL fragment(`#key=...`)에 포함 — 서버는 키를 알 수 없음
-- [ ] 수신자는 링크만으로 브라우저에서 복호화 후 다운로드
+### Phase 2.5 — 문서 변환 통합 (iLoveAPI, 1.5~2주)
+- [ ] iLovePDF/iLoveIMG Python SDK 통합 (`pylovepdf` + REST 직접 호출)
+- [ ] PDF 작업: compress, merge, split, watermark, to-image
+- [ ] Image 작업: compress, resize, format-convert (jpg/png/webp)
+- [ ] **내부 포맷 표준화**: HWP/DOCX/XLSX → 업로드 시 iLoveAPI(또는 LibreOffice headless)로 PDF 변환 후 저장
+- [ ] 변환 결과는 새 hash → 새 blob (원본 보존, CAS와 자연스럽게 호환)
+- [ ] presigned URL로 iLoveAPI에 직접 전달 (트래픽 절감)
 
-> **설계 트레이드오프**: E2EE 파일은 암호화 후 해시가 달라지므로 **dedup이 깨짐**. 공유 전용 암호화 사본을 별도로 관리하는 방식으로 해결 예정. 개인 공간은 dedup 유지, 공유 파일만 암호화 사본 생성.
+### Phase 3 — `.epf` 제한 공유 + 보호 뷰어 (4~6주, **Phase 2 선행 필수**)
+경량 DRM 시스템. 위협 모델은 "결정한 공격자는 우회 가능, 일반 사용자 95% 차단" 수준으로 정의.
+
+**`.epf` 포맷** — 항상 PDF를 내부 포맷으로 래핑
+```
+[Magic "EPF1"][HdrLen][JSON Header: alg, iv, key_id, policy_url, meta][GCM Tag][AES-256-GCM Payload]
+```
+
+- [ ] `.epf` 인코더/디코더 (서버측 Python, 클라이언트측 TypeScript)
+- [ ] DB 스키마 추가:
+  - `access_grants` (node_id, grantee_user_id, expires_at, max_views/prints, view/print_count, allow_download, revoked_at)
+  - `content_keys` (key_id, grant_id, wrapped_cek — 마스터키로 AES-KW wrap)
+- [ ] 정책 검증 API: `GET /api/access/policy?key_id=...` → JWT 검증 → 만료/카운트/취소 확인 → CEK 응답
+- [ ] 카운트 갱신 API: `POST /api/access/{view,print}` → 서버측 증가
+- [ ] **웹 전용 보호 뷰어** (PDF.js 기반)
+  - Canvas-only 렌더링 (텍스트 레이어 제거)
+  - **Getty Images 스타일 가시적 워터마크** — 수신자 이메일/IP를 페이지 전체에 반투명 대각선 오버레이로 합성 (비인가 배포 시 책임 추적용)
+  - 우클릭/선택/인쇄 차단 시도 (deterrent)
+  - 만료/카운트 초과 시 즉시 차단
+- [ ] 공유 UI: "보호 공유" 모달 — 수신자, 만료, 인쇄 횟수, 다운로드 허용 옵션
+
+> **결정 사항**:
+> - 내부 포맷은 **PDF로 통일**. 모든 입력은 Phase 2.5에서 PDF로 변환된 뒤 `.epf` 래핑.
+> - 뷰어는 **웹 전용**. 네이티브는 보류.
+> - 위협 모델: 화면 캡처/사진 촬영은 차단 불가능을 명시적으로 수용. **워터마크 기반 책임 추적**으로 대체.
+> - `access_grants.grantee_user_id`가 `users` 테이블 참조 → **Phase 2 선행 필수**.
 
 ### Phase 4 — 온라인 뷰 & 공동 작업 (4~8주)
-- [ ] 온라인 미리보기: PDF.js (PDF), 이미지, 텍스트, 코드 하이라이팅
-- [ ] Office 파일 뷰어: LibreOffice 변환 또는 Microsoft Office Web Viewer 연동
+- [ ] 온라인 미리보기: PDF.js, 이미지, 텍스트, 코드 하이라이팅
 - [ ] 텍스트/마크다운 인라인 편집
 - [ ] 실시간 공동 편집: Yjs (CRDT) + WebSocket (별도 collaboration 서버 필요)
 - [ ] 문서별 히스토리 및 버전 관리 (S3 Versioning 활용)
