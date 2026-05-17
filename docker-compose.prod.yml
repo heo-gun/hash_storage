@@ -45,6 +45,12 @@ services:
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
       S3_REGION: ${S3_REGION:-ap-northeast-2}
       S3_USE_SSL: "true"
+
+      # Cognito (Phase 2) — 컨테이너로 명시 전달 필수
+      COGNITO_REGION: ${COGNITO_REGION:-ap-northeast-2}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID}
+      AUTH_DEV_BYPASS: "false"
     # 포트 외부 노출 없음 (Nginx가 내부 프록시)
     networks:
       - internal

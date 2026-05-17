@@ -82,6 +82,12 @@ services:
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-fms-bucket}
       S3_REGION: ${S3_REGION:-ap-northeast-2}
       S3_USE_SSL: "false"
+
+      # Cognito (Phase 2) — 비어있을 수 있음, AUTH_DEV_BYPASS=true면 우회
+      COGNITO_REGION: ${COGNITO_REGION:-ap-northeast-2}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
+      AUTH_DEV_BYPASS: ${AUTH_DEV_BYPASS:-true}
     ports:
       - "5000:5000"
     volumes:

@@ -4,7 +4,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(gh api *)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:getdesign.md)"
+      "WebFetch(domain:getdesign.md)",
+      "Bash(Get-ChildItem -Path \"C:\\\\in_kaist\\\\hash_storage\\\\.claude\\\\worktrees\\\\heuristic-montalcini-3dffd3\" -Recurse -Name)",
+      "Bash(Sort-Object)"
     ]
   }
 }

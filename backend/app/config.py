@@ -14,3 +14,18 @@ S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "fms-bucket")
 S3_REGION = os.getenv("S3_REGION", "ap-northeast-2")
 S3_USE_SSL = os.getenv("S3_USE_SSL", "false").lower() == "true"
+
+# ── AWS Cognito ─────────────────────────────────────────────
+COGNITO_REGION = os.getenv("COGNITO_REGION", "ap-northeast-2")
+COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID", "")
+COGNITO_CLIENT_ID = os.getenv("COGNITO_CLIENT_ID", "")
+# ID token을 검증 대상으로 사용 (email/profile claim 포함)
+COGNITO_ISSUER = (
+    f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
+    if COGNITO_USER_POOL_ID
+    else ""
+)
+COGNITO_JWKS_URL = f"{COGNITO_ISSUER}/.well-known/jwks.json" if COGNITO_ISSUER else ""
+
+# 인증 우회 (로컬 개발 시 true로 설정하면 X-Debug-User-Sub 헤더로 유저 흉내)
+AUTH_DEV_BYPASS = os.getenv("AUTH_DEV_BYPASS", "false").lower() == "true"
