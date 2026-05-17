@@ -118,8 +118,8 @@ python scripts/benchmark_tree.py
 MVP 이후 아래 단계로 서비스를 확장할 계획입니다.
 
 ### Phase 1 — 배포 (1~2주)
-- [ ] AWS EC2 + RDS(PostgreSQL) + S3 프로덕션 배포
-- [ ] Nginx HTTPS 설정 (Let's Encrypt)
+- [x] AWS EC2 + RDS PostgreSQL or(DOCKER) + S3 프로덕션 배포
+- [x] Nginx HTTPS 설정 (Let's Encrypt)
 - [ ] GitHub Actions CI/CD 파이프라인 구성
 - [ ] 모니터링: CloudWatch 또는 Grafana + Prometheus
 
