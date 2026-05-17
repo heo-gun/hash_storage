@@ -132,20 +132,17 @@ MVP 이후 아래 단계로 서비스를 확장할 계획입니다.
 
 > **설계 주의점**: `file_blobs`는 전역 dedup 레이어로 유지하되, `fs_nodes`는 사용자별로 완전히 분리. 동일 파일을 다른 유저가 올려도 S3에는 하나만 존재하면서 접근 권한은 분리됨.
 
-### Phase 2.5 — 문서 변환 통합 (iLoveAPI, 1.5~2주)
-- [ ] iLovePDF/iLoveIMG Python SDK 통합 (`pylovepdf` + REST 직접 호출)
-- [ ] PDF 작업: compress, merge, split, watermark, to-image
-- [ ] Image 작업: compress, resize, format-convert (jpg/png/webp)
-- [ ] **내부 포맷 표준화**: HWP/DOCX/XLSX → 업로드 시 iLoveAPI(또는 LibreOffice headless)로 PDF 변환 후 저장
-- [ ] 변환 결과는 새 hash → 새 blob (원본 보존, CAS와 자연스럽게 호환)
-- [ ] presigned URL로 iLoveAPI에 직접 전달 (트래픽 절감)
-
 ### Phase 3 — `.epf` 제한 공유 + 보호 뷰어 (4~6주, **Phase 2 선행 필수**)
 경량 DRM 시스템. 위협 모델은 "결정한 공격자는 우회 가능, 일반 사용자 95% 차단" 수준으로 정의.
 
-**`.epf` 포맷** — 항상 PDF를 내부 포맷으로 래핑
+**적용 범위 (확정)**: 사용자가 명시적으로 보호 공유를 선택한 **PDF / IMG 파일에 한해서만** `.epf` 래핑.
+다른 포맷(DOCX/HWP/XLSX 등)은 일반 파일로만 다룸. 외부 변환 API(iLoveAPI 등) 도입하지 않음.
+
+**필요 시 자체 처리**: Pillow(이미지), pypdf(PDF 메타/페이지 조작) 라이브러리로 대응. 워터마크 burn-in 등은 self-hosted 처리.
+
+**`.epf` 포맷** — PDF 또는 IMG 바이트를 내부 페이로드로 래핑
 ```
-[Magic "EPF1"][HdrLen][JSON Header: alg, iv, key_id, policy_url, meta][GCM Tag][AES-256-GCM Payload]
+[Magic "EPF1"][HdrLen][JSON Header: alg, iv, key_id, policy_url, meta { original_ext: "pdf"|"jpg"|... }][GCM Tag][AES-256-GCM Payload]
 ```
 
 - [ ] `.epf` 인코더/디코더 (서버측 Python, 클라이언트측 TypeScript)
