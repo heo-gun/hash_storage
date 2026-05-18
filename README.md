@@ -1,27 +1,27 @@
 # Hash Storage — Content-Addressable File Management System
 
-## 1. 핵심 아이디어 및 용어 (Core Concepts)
+## 1. Core Concepts
 
 **CAS (Content-Addressable Storage)**
-파일의 '경로'가 아닌 '내용(SHA-256 Hash)'을 주소로 저장. 시스템 전체에서 동일한 파일은 단 하나만 존재하며, 나머지는 같은 Hash ID를 가리키는 참조(Reference)로 처리됨 (중복 제거).
+파일의 '경로'가 아닌 '내용(SHA-256 Hash)'을 주소로 저장. 시스템 전체에서 동일한 파일은 단 하나만 존재하며, 나머지는 같은 Hash ID를 가리키는 참조(Reference)로 처리됨 (중복 제거 : deduplication).
 
 **DAG-Tree Indexing**
-폴더 구조를 PostgreSQL 내에서 부모-자식 노드로 연결. 중복 파일은 여러 fs_node가 하나의 hash_id를 가리키는 형태로 구현됨. B-Tree 인덱스를 통해 O(log n) 탐색 보장.
+폴더 구조를 PostgreSQL 내에서 노드로 연결. 중복 파일은 여러 fs_node가 하나의 hash_id를 가리키는 형태로 구현됨. B-Tree 인덱스를 통해 O(log n) 탐색 보장.
 
 **Virtual File System (VFS)**
-사용자는 익숙한 트리 구조(탐색기)를 보지만, 백엔드에서는 DB 쿼리를 통해 파일 메타데이터를 즉시 반환. 실제 바이너리는 S3에 존재하며 DB에는 메타데이터만 존재.
+사용자는 익숙한 파일 구조(탐색기)를 보지만, 백엔드에서는 DB 쿼리를 통해 파일 메타데이터를 즉시 반환. 실제 바이너리는 S3에 존재하며 DB에는 메타데이터만 존재.
 
 **Reference Counting GC**
 파일 삭제 시 ref_count를 감소시키고, 0이 되면 S3 오브젝트와 DB 레코드를 함께 삭제. 폴더 삭제 시 하위 트리를 재귀적으로 순회하여 ref_count를 일괄 처리.
 
 **S3-backed Storage**
-실제 바이너리 데이터는 AWS S3(혹은 로컬의 MinIO)에 Hash값을 Key로 저장. 무한한 확장성과 내구성 확보.
+실제 바이너리 데이터는 AWS S3(로컬 : MinIO)에 Hash값을 Key로 저장. 무한한 확장성과 내구성 확보.
 
 ---
 
-## 2. 기술 스택 (Tech Stack)
+## 2. Tech Stack
 
-| 영역 | 기술 |
+| Field | Tech |
 |------|------|
 | Frontend | React 19 + TypeScript + Vite + Tailwind CSS |
 | 클라이언트 해시 | crypto-js (SHA-256, 업로드 전 계산) |
@@ -33,10 +33,10 @@
 
 ---
 
-## 3. 데이터 모델
+## 3. Data Model
 
-### `file_blobs` — CAS 레이어
-| 컬럼 | 설명 |
+### `file_blobs` — CAS Layer
+| Column | Explanation |
 |------|------|
 | `hash_id` (PK) | SHA-256 해시, 실제 파일 내용의 주소 |
 | `size_bytes` | 파일 크기 |
@@ -44,8 +44,8 @@
 | `s3_key` | S3/MinIO 내 오브젝트 경로 |
 | `ref_count` | 참조 카운터 (0 도달 시 GC 대상) |
 
-### `fs_nodes` — VFS 레이어
-| 컬럼 | 설명 |
+### `fs_nodes` — VFS Layer
+| Column | Explanation |
 |------|------|
 | `node_id` (UUID, PK) | 노드 고유 ID |
 | `parent_id` (FK) | 부모 노드 (self-reference, 폴더 계층) |
@@ -55,9 +55,9 @@
 
 ---
 
-## 4. API 엔드포인트
+## 4. API Endpoint
 
-| Method | Endpoint | 설명 |
+| Method | Endpoint | Explanation |
 |--------|----------|------|
 | `POST` | `/files/upload` | 파일 업로드 (해시 체크 후 dedup 또는 신규 저장) |
 | `GET` | `/nodes` | 루트 또는 특정 폴더의 자식 노드 목록 |
@@ -68,7 +68,7 @@
 
 ---
 
-## 5. 로컬 개발 환경 (Local Development)
+## 5. Local Development
 
 로컬에서는 MinIO(S3 호환)를 사용하여 AWS 비용 없이 동일한 환경 구축 가능.
 
@@ -93,7 +93,7 @@ python scripts/benchmark_tree.py
 
 ---
 
-## 6. AWS 프로덕션 배포 (Deployment)
+## 6. AWS Production Deployment
 
 ### Step 1: S3 & IAM 설정
 - S3 버킷 생성 + 퍼블릭 액세스 차단
@@ -124,18 +124,18 @@ MVP 이후 아래 단계로 서비스를 확장할 계획입니다.
 - [ ] 모니터링: CloudWatch 또는 Grafana + Prometheus
 
 ### Phase 2 — 사용자 공간 분리 & OAuth (2~3주)
-- [ ] Google / GitHub OAuth 2.0 로그인 (Authlib)
-- [ ] JWT 기반 세션 관리
-- [ ] `fs_nodes`에 `owner_id` 컬럼 추가, 모든 쿼리에 user scope 적용
-- [ ] 사용자별 스토리지 쿼터 관리
+- [x] Google / GitHub OAuth 2.0 로그인 (Authlib)
+- [x] JWT 기반 세션 관리
+- [x] `fs_nodes`에 `owner_id` 컬럼 추가, 모든 쿼리에 user scope 적용
+- [x] 사용자별 스토리지 쿼터 관리
 - [ ] 관리자 대시보드 (유저 목록, 스토리지 사용량)
 
 > **설계 주의점**: `file_blobs`는 전역 dedup 레이어로 유지하되, `fs_nodes`는 사용자별로 완전히 분리. 동일 파일을 다른 유저가 올려도 S3에는 하나만 존재하면서 접근 권한은 분리됨.
 
 ### Phase 3 — `.epf` 제한 공유 + 보호 뷰어 (4~6주, **Phase 2 선행 필수**)
-경량 DRM 시스템. 위협 모델은 "결정한 공격자는 우회 가능, 일반 사용자 95% 차단" 수준으로 정의.
+경량 DRM 시스템. 
 
-**적용 범위 (확정)**: 사용자가 명시적으로 보호 공유를 선택한 **PDF / IMG 파일에 한해서만** `.epf` 래핑.
+**적용 범위**: 사용자가 명시적으로 보호 공유를 선택한 **PDF / IMG 파일에 한해서만** `.epf` 래핑.
 다른 포맷(DOCX/HWP/XLSX 등)은 일반 파일로만 다룸. 외부 변환 API(iLoveAPI 등) 도입하지 않음.
 
 **필요 시 자체 처리**: Pillow(이미지), pypdf(PDF 메타/페이지 조작) 라이브러리로 대응. 워터마크 burn-in 등은 self-hosted 처리.
