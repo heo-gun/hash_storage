@@ -70,6 +70,11 @@ services:
       target: prod
       args:
         VITE_API_BASE_URL: /api
+        VITE_COGNITO_REGION: ${COGNITO_REGION:-ap-northeast-2}
+        VITE_COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID}
+        VITE_COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID}
+        VITE_COGNITO_DOMAIN: ${COGNITO_DOMAIN}
+        VITE_COGNITO_REDIRECT_URI: https://${DOMAIN}/auth/callback
     container_name: fms-frontend
     restart: always
     networks:
