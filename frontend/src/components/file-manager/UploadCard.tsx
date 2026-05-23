@@ -1,4 +1,4 @@
-import { FileUp, Loader2 } from "lucide-react";
+import { FileUp, Loader2, Upload } from "lucide-react";
 import { UploadIconLabel } from "./UploadIconLabel";
 
 type Props = {
@@ -16,27 +16,20 @@ export function UploadCard({
 }: Props) {
   return (
     <section
-      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="rounded-xl border border-hairline bg-surface-2 p-5"
       aria-labelledby="upload-heading"
     >
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-          <FileUp className="h-5 w-5" aria-hidden />
-        </span>
-        <div>
-          <h2
-            id="upload-heading"
-            className="text-base font-semibold text-slate-900"
-          >
-            파일 업로드
-          </h2>
-          <p className="text-xs text-slate-500">
-            SHA-256 해시로 중복 여부를 판단한 뒤 저장합니다.
-          </p>
-        </div>
+      <div className="mb-4 flex items-center gap-2">
+        <Upload className="h-4 w-4 text-ink-muted" aria-hidden />
+        <h2
+          id="upload-heading"
+          className="font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-ink-subtle"
+        >
+          Upload
+        </h2>
       </div>
       <div className="flex flex-col gap-3">
-        <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 px-4 py-6 transition hover:border-emerald-300 hover:bg-emerald-50/30">
+        <label className="flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-hairline-2 bg-surface-1 px-4 py-6 transition-colors duration-200 hover:border-accent/40 hover:bg-surface-3/60">
           <UploadIconLabel file={selectedFile} />
           <input
             type="file"
@@ -48,14 +41,14 @@ export function UploadCard({
           type="button"
           onClick={onUpload}
           disabled={!selectedFile || loading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-45 active:scale-[0.99]"
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-canvas transition-colors duration-200 hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-dim"
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           ) : (
             <FileUp className="h-4 w-4" aria-hidden />
           )}
-          이 폴더에 업로드
+          Upload to this folder
         </button>
       </div>
     </section>

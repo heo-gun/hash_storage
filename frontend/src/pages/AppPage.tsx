@@ -6,27 +6,32 @@ import { UploadCard } from "../components/file-manager/UploadCard";
 import { BannerAlert } from "../components/file-manager/BannerAlert";
 import { NodeListTable } from "../components/file-manager/NodeListTable";
 
-/**
- * 파일 매니저 페이지 (/app)
- * 기존 단일 페이지 앱의 UI를 그대로 옮긴 것.
- * Phase 2에서 Cognito 로그인 가드 추가 예정.
- */
 export function AppPage() {
   const fm = useFileManager();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-indigo-50/80">
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-canvas text-ink">
+      {/* Subtle hash watermark, like landing */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 select-none overflow-hidden opacity-[0.025] font-mono text-[140px] leading-none text-ink whitespace-nowrap"
+      >
+        <div className="-rotate-[8deg] translate-y-32 translate-x-12">
+          7a3f8b2e1d9c4f5a6b8c0d1e2f3a4b5c6d7e8f9a
+        </div>
+      </div>
+
+      <div className="relative mx-auto max-w-6xl px-6 py-12">
         <AppHeader />
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/50">
+        <div className="overflow-hidden rounded-2xl border border-hairline bg-surface-1">
           <LocationSection
             breadcrumbs={fm.breadcrumbs}
             currentPath={fm.currentPath}
             onNavigateCrumb={fm.moveToBreadCrumb}
           />
 
-          <div className="grid gap-4 border-b border-slate-100 p-5 sm:p-6 md:grid-cols-2">
+          <div className="grid gap-4 border-b border-hairline p-6 md:grid-cols-2">
             <FolderCreateCard
               folderName={fm.folderName}
               onFolderNameChange={fm.setFolderName}

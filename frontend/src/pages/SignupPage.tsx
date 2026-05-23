@@ -17,10 +17,12 @@ export function SignupPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   async function handleSignup(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setLoading(true);
     try {
       await cognito.signUp(email.trim(), password, name.trim());
@@ -38,7 +40,6 @@ export function SignupPage() {
     setLoading(true);
     try {
       await cognito.confirmSignUp(email.trim(), code.trim());
-      // 자동 로그인
       await signInWithPassword(email.trim(), password);
       navigate("/app", { replace: true });
     } catch (err) {
@@ -50,127 +51,154 @@ export function SignupPage() {
 
   async function handleResend() {
     setError(null);
+    setInfo(null);
     try {
       await cognito.resendConfirmationCode(email.trim());
-      setError("인증 코드를 다시 보냈습니다");
+      setInfo("A new code has been sent.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "재전송 실패");
     }
   }
 
+  const inputCls =
+    "mt-2 w-full rounded-md border border-hairline bg-surface-1 px-3 py-2 text-sm text-ink placeholder:text-ink-dim transition-colors duration-200 focus:border-accent focus:outline-none";
+  const labelCls =
+    "font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-ink-subtle";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-indigo-50/80 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-8 shadow-xl shadow-slate-200/50">
-        <h1 className="text-2xl font-bold text-slate-900">
-          {stage === "form" ? "가입하기" : "이메일 인증"}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {stage === "form"
-            ? "계정을 만들어 CastorFS를 시작하세요"
-            : `${email} 으로 보낸 6자리 코드를 입력하세요`}
-        </p>
+    <div className="min-h-screen bg-canvas text-ink">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 select-none overflow-hidden opacity-[0.03] font-mono text-[140px] leading-none text-ink whitespace-nowrap"
+      >
+        <div className="-rotate-[8deg] translate-y-32 translate-x-12">
+          b2f04ca1e8d77361029384756afcde012345678901234567890abcdef1234567
+        </div>
+      </div>
 
-        {stage === "form" ? (
-          <form onSubmit={handleSignup} className="mt-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                이름
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                이메일
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                비밀번호
-              </label>
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              />
-              <p className="mt-1 text-xs text-slate-400">
-                8자 이상, 대소문자/숫자/기호 포함
-              </p>
-            </div>
-
-            {error && (
-              <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {loading ? "가입 중…" : "가입하기"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleConfirm} className="mt-6 space-y-4">
-            <input
-              type="text"
-              inputMode="numeric"
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="6자리 코드"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-lg tracking-widest text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-
-            {error && (
-              <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {loading ? "확인 중…" : "이메일 인증"}
-            </button>
-            <button
-              type="button"
-              onClick={handleResend}
-              className="w-full text-sm text-slate-500 hover:text-slate-700"
-            >
-              코드를 못 받으셨나요? 다시 보내기
-            </button>
-          </form>
-        )}
-
-        <p className="mt-6 text-center text-sm text-slate-500">
-          이미 계정이 있으신가요?{" "}
-          <Link
-            to="/login"
-            className="font-semibold text-indigo-600 hover:text-indigo-700"
-          >
-            로그인
+      <div className="relative flex min-h-screen items-center justify-center px-6">
+        <div className="w-full max-w-md">
+          <Link to="/" className="mb-10 flex items-center justify-center gap-3">
+            <span className="text-2xl font-semibold tracking-tightest-3 text-ink">
+              castor
+            </span>
+            <span className="font-mono text-[11px] text-accent bg-surface-2 px-2 py-0.5 rounded-xs border border-hairline">
+              sha256:7a3f8b…
+            </span>
           </Link>
-        </p>
+
+          <div className="rounded-2xl border border-hairline bg-surface-1 p-8">
+            <h1 className="text-2xl font-semibold tracking-tightest-3 text-ink">
+              {stage === "form" ? "Create account" : "Verify email"}
+            </h1>
+            <p className="mt-1 text-sm text-ink-muted">
+              {stage === "form"
+                ? "Start storing files identified by hash."
+                : `Enter the 6-digit code sent to ${email}.`}
+            </p>
+
+            {stage === "form" ? (
+              <form onSubmit={handleSignup} className="mt-6 space-y-4">
+                <div>
+                  <label className={labelCls}>Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={inputCls}
+                  />
+                  <p className="mt-1.5 font-mono text-[11px] text-ink-dim">
+                    8+ chars, mixed case, number, symbol
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-sm text-rose-300">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-canvas transition-colors duration-200 hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-dim"
+                >
+                  {loading ? "Creating…" : "Create account"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleConfirm} className="mt-6 space-y-4">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="000000"
+                  className="w-full rounded-md border border-hairline bg-surface-1 px-3 py-3 text-center font-mono text-xl tracking-[0.4em] text-ink placeholder:text-ink-dim focus:border-accent focus:outline-none"
+                />
+
+                {error && (
+                  <div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-sm text-rose-300">
+                    {error}
+                  </div>
+                )}
+                {info && (
+                  <div className="rounded-md border border-accent/30 bg-accent/5 px-3 py-2 text-sm text-accent">
+                    {info}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-canvas transition-colors duration-200 hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-dim"
+                >
+                  {loading ? "Verifying…" : "Verify"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  className="w-full text-sm text-ink-muted transition-colors duration-200 hover:text-ink"
+                >
+                  Resend code
+                </button>
+              </form>
+            )}
+          </div>
+
+          <p className="mt-6 text-center text-sm text-ink-muted">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="font-medium text-accent transition-colors duration-200 hover:text-accent-hover"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

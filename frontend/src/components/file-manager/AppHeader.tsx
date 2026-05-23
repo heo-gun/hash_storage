@@ -1,4 +1,5 @@
-import { HardDrive, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../../auth/AuthContext";
 
@@ -11,47 +12,49 @@ function formatBytes(n: number): string {
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
+  const pct =
+    user && user.quota_bytes > 0
+      ? Math.min(100, (user.used_bytes / user.quota_bytes) * 100)
+      : 0;
 
   return (
-    <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/25">
-          <HardDrive className="h-7 w-7" aria-hidden />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            파일 저장소
-          </h1>
-          <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-600">
-            중복 제거(CAS)와 폴더 트리로 파일을 관리합니다.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {["CAS 해시", "PostgreSQL", "S3"].map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center rounded-full border border-slate-200 bg-white/80 px-2.5 py-0.5 text-xs font-medium text-slate-600"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
+    <header className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <Link to="/" className="inline-flex items-center gap-3">
+          <span className="text-ink font-semibold tracking-tightest-3 text-2xl">
+            castor
+          </span>
+          <span className="hidden font-mono text-[11px] text-accent bg-surface-2 px-2 py-0.5 rounded-xs border border-hairline sm:inline-block">
+            sha256:7a3f8b…
+          </span>
+        </Link>
+        <p className="mt-3 text-sm text-ink-muted tracking-tightest-3">
+          Content-addressable storage. Browse, upload, share.
+        </p>
       </div>
 
       {user && (
-        <div className="flex items-center gap-3 self-end sm:self-auto">
+        <div className="flex items-center gap-4 self-end sm:self-auto">
           <div className="text-right">
-            <p className="text-sm font-medium text-slate-900">
+            <p className="text-sm font-medium text-ink">
               {user.display_name || user.email}
             </p>
-            <p className="text-xs text-slate-500">
-              {formatBytes(user.used_bytes)} / {formatBytes(user.quota_bytes)}
-            </p>
+            <div className="mt-1.5 flex items-center justify-end gap-2">
+              <div className="h-1.5 w-32 overflow-hidden rounded-full bg-surface-2">
+                <div
+                  className="h-full bg-accent transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="font-mono text-[11px] text-ink-subtle">
+                {formatBytes(user.used_bytes)} / {formatBytes(user.quota_bytes)}
+              </span>
+            </div>
           </div>
           <button
             onClick={signOut}
-            title="로그아웃"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            title="Sign out"
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-hairline bg-surface-2 text-ink-muted transition-colors duration-200 hover:bg-surface-3 hover:text-ink"
           >
             <LogOut className="h-4 w-4" />
           </button>

@@ -8,14 +8,14 @@ type Props = {
 export function UploadIconLabel({ file }: Props) {
   return (
     <>
-      <FileUp className="mb-2 h-8 w-8 text-slate-400" strokeWidth={1.5} />
-      <span className="text-sm font-medium text-slate-700">
-        {file ? file.name : "클릭해서 파일 선택"}
+      <FileUp className="mb-2 h-7 w-7 text-ink-dim" strokeWidth={1.5} />
+      <span className="text-sm font-medium text-ink">
+        {file ? file.name : "Click to choose a file"}
       </span>
-      <span className="mt-1 text-xs text-slate-500">
+      <span className="mt-1 font-mono text-[11px] text-ink-subtle">
         {file
           ? formatFileSize(file.size)
-          : "선택한 뒤 아래 버튼으로 이 폴더에 올립니다."}
+          : "SHA-256 will be computed locally"}
       </span>
     </>
   );

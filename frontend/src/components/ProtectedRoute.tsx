@@ -9,8 +9,13 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-500">
-        세션 복구 중…
+      <div className="min-h-screen flex items-center justify-center bg-canvas">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-ink-subtle">
+            Loading session
+          </span>
+        </div>
       </div>
     );
   }

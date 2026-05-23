@@ -24,7 +24,7 @@ export function AuthCallbackPage() {
       return;
     }
     if (!code || !state) {
-      setError("code 또는 state 누락");
+      setError("Missing code or state");
       return;
     }
 
@@ -34,26 +34,39 @@ export function AuthCallbackPage() {
         await setSession(tokens);
         navigate("/app", { replace: true });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "로그인 처리 실패");
+        setError(e instanceof Error ? e.message : "Sign-in failed");
       }
     })();
   }, [params, navigate, setSession]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-canvas px-6">
       <div className="text-center">
         {error ? (
           <>
-            <p className="text-rose-600">{error}</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-rose-300">
+              Sign-in error
+            </p>
+            <p className="mt-3 max-w-md text-sm text-ink-muted">{error}</p>
             <button
               onClick={() => navigate("/login")}
-              className="mt-4 text-sm text-indigo-600 hover:text-indigo-700"
+              className="mt-6 text-sm text-accent transition-colors duration-200 hover:text-accent-hover"
             >
-              로그인 페이지로 돌아가기
+              Back to sign in
             </button>
           </>
         ) : (
-          <p className="text-slate-500">로그인 처리 중…</p>
+          <>
+            <div className="mb-4 flex items-center justify-center gap-2">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-ink-subtle">
+                Signing in
+              </span>
+            </div>
+            <p className="text-sm text-ink-muted">
+              Exchanging authorization code…
+            </p>
+          </>
         )}
       </div>
     </div>
