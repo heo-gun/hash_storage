@@ -40,7 +40,7 @@ def search_public():
                 f"""
                 SELECT n.node_id, n.name, n.created_at,
                        b.size_bytes, b.mime_type,
-                       u.name AS owner_name
+                       u.display_name AS owner_name
                 FROM fs_nodes n
                 JOIN file_blobs b ON n.hash_id = b.hash_id
                 JOIN users u ON n.owner_id = u.user_id

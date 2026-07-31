@@ -30,14 +30,7 @@ RUN npm run build
 # ---- 프로덕션 스테이지 (정적 파일 서빙) ----
 FROM nginx:alpine AS prod
 COPY --from=builder /app/dist /usr/share/nginx/html
-# SPA 라우팅: 모든 경로를 index.html로 fallback
-RUN printf 'server {\n\
-    listen 80;\n\
-    root /usr/share/nginx/html;\n\
-    index index.html;\n\
-    location / {\n\
-        try_files $uri $uri/ /index.html;\n\
-    }\n\
-}\n' > /etc/nginx/conf.d/default.conf
+# SPA fallback + .mjs MIME 교정 (frontend/nginx.conf 참고)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
