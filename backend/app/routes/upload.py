@@ -7,6 +7,7 @@ from app.auth.middleware import require_auth
 from app.config import S3_BUCKET_NAME
 from app.db import get_db_connection
 from app.routes import bp
+from app.services.node_service import VISIBILITIES
 from app.services.user_service import QuotaExceeded, adjust_used_bytes, check_quota
 from app.storage import get_s3_client
 
@@ -26,12 +27,15 @@ def upload_file():
     hash_id = request.form.get("hash_id")
     parent_id = request.form.get("parent_id") or None
     name = request.form.get("name")
+    visibility = request.form.get("visibility") or "private"
     owner_id = g.current_user["user_id"]
 
     if not file:
         return jsonify({"message": "File is required"}), 400
     if not hash_id:
         return jsonify({"message": "Hash ID is required"}), 400
+    if visibility not in VISIBILITIES:
+        return jsonify({"message": f"visibility must be one of {VISIBILITIES}"}), 400
 
     original_name = _sanitize_name(name or file.filename or "unnamed")
     mime_type = file.mimetype or "application/octet-stream"
@@ -103,11 +107,12 @@ def upload_file():
 
             cur.execute(
                 """
-                INSERT INTO fs_nodes (owner_id, parent_id, node_type, name, hash_id)
-                VALUES (%s, %s, 'file', %s, %s)
-                RETURNING node_id, parent_id, node_type, name, hash_id, created_at, updated_at
+                INSERT INTO fs_nodes (owner_id, parent_id, node_type, name, hash_id, visibility)
+                VALUES (%s, %s, 'file', %s, %s, %s)
+                RETURNING node_id, parent_id, node_type, name, hash_id, visibility,
+                          created_at, updated_at
                 """,
-                (owner_id, parent_id, original_name, hash_id),
+                (owner_id, parent_id, original_name, hash_id, visibility),
             )
             new_node = cur.fetchone()
 

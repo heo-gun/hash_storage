@@ -3,9 +3,16 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import * as oauth from "../auth/oauth";
 import { tokenStorage } from "../auth/storage";
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000",
-});
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+export const api = axios.create({ baseURL });
+
+/**
+ * 인증이 필요 없는 엔드포인트용 클라이언트 (/search, /public/...).
+ * `api` 의 401 인터셉터가 로그인 페이지로 리다이렉트하기 때문에, 비로그인
+ * 방문자가 쓰는 경로는 인터셉터가 붙지 않은 별도 인스턴스를 쓴다.
+ */
+export const publicApi = axios.create({ baseURL });
 
 // 모든 요청에 Authorization: Bearer <id_token> 자동 첨부
 api.interceptors.request.use((config) => {

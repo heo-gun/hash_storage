@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { LogOut, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../../auth/AuthContext";
@@ -51,6 +51,13 @@ export function AppHeader() {
               </span>
             </div>
           </div>
+          <Link
+            to="/search"
+            title="Browse public files"
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-hairline bg-surface-2 text-ink-muted transition-colors duration-200 hover:bg-surface-3 hover:text-ink"
+          >
+            <Search className="h-4 w-4" />
+          </Link>
           <button
             onClick={signOut}
             title="Sign out"

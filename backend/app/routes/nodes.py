@@ -9,6 +9,7 @@ from app.blob_deletion import apply_blob_deref_and_cleanup_s3, collect_subtree_f
 from app.config import S3_BUCKET_NAME
 from app.db import get_db_connection
 from app.routes import bp
+from app.services.node_service import VISIBILITIES
 from app.services.user_service import adjust_used_bytes
 from app.storage import get_s3_client
 
@@ -24,7 +25,8 @@ def get_nodes():
             if parent_id:
                 cur.execute(
                     """
-                    SELECT node_id, parent_id, node_type, name, hash_id, created_at, updated_at
+                    SELECT node_id, parent_id, node_type, name, hash_id, visibility,
+                           created_at, updated_at
                     FROM fs_nodes
                     WHERE owner_id = %s AND parent_id = %s
                     ORDER BY node_type DESC, name ASC
@@ -34,7 +36,8 @@ def get_nodes():
             else:
                 cur.execute(
                     """
-                    SELECT node_id, parent_id, node_type, name, hash_id, created_at, updated_at
+                    SELECT node_id, parent_id, node_type, name, hash_id, visibility,
+                           created_at, updated_at
                     FROM fs_nodes
                     WHERE owner_id = %s AND parent_id IS NULL
                     ORDER BY node_type DESC, name ASC
@@ -78,6 +81,36 @@ def download_node(node_id):
         as_attachment=True,
         download_name=row["name"],
     )
+
+
+@bp.route("/nodes/<node_id>/visibility", methods=["PATCH"])
+@require_auth
+def update_node_visibility(node_id):
+    owner_id = g.current_user["user_id"]
+    data = request.get_json(force=True)
+    visibility = data.get("visibility")
+
+    if visibility not in VISIBILITIES:
+        return jsonify({"message": f"visibility must be one of {VISIBILITIES}"}), 400
+
+    with closing(get_db_connection()) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE fs_nodes
+                SET visibility = %s, updated_at = now()
+                WHERE node_id = %s AND owner_id = %s
+                RETURNING node_id, parent_id, node_type, name, hash_id, visibility,
+                          created_at, updated_at
+                """,
+                (visibility, node_id, owner_id),
+            )
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"message": "Node not found"}), 404
+            conn.commit()
+
+    return jsonify(row)
 
 
 @bp.route("/nodes/<node_id>", methods=["DELETE"])

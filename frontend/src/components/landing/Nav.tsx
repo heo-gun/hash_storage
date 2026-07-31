@@ -24,6 +24,9 @@ export function Nav() {
           <a href="#pricing" className="hover:text-ink transition-colors duration-200 ease-out-soft">
             Pricing
           </a>
+          <Link to="/search" className="hover:text-ink transition-colors duration-200 ease-out-soft">
+            Explore
+          </Link>
           <a
             href="https://github.com/"
             target="_blank"
