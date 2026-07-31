@@ -132,6 +132,15 @@ MVP 이후 아래 단계로 서비스를 확장할 계획입니다.
 
 > **설계 주의점**: `file_blobs`는 전역 dedup 레이어로 유지하되, `fs_nodes`는 사용자별로 완전히 분리. 동일 파일을 다른 유저가 올려도 S3에는 하나만 존재하면서 접근 권한은 분리됨.
 
+### Phase 2.5 — 업로드 편의성 & 공개 범위
+- [x] 다중 파일 / 폴더 업로드 (`webkitdirectory`, 동시 업로드 4개)
+- [x] `fs_nodes.visibility` (`private` / `public` / `shared`) — 업로드 시 선택, 목록에서 변경
+- [x] 공개 파일 검색 `GET /search` + `/search` 페이지 (비로그인 접근 가능)
+
+> **동시성 주의점**: 폴더 업로드에서 폴더 생성을 업로드 워커와 병렬로 돌리면,
+> 경로 prefix를 공유하는 요청끼리 같은 폴더를 동시에 INSERT 하다 유니크 제약에 걸린다.
+> 그래서 폴더 생성은 업로드 시작 전 **순차 prepass**로 분리했다.
+
 ### Phase 3 — `.epf` 제한 공유 + 보호 뷰어 (4~6주, **Phase 2 선행 필수**)
 경량 DRM 시스템. 
 
@@ -145,24 +154,30 @@ MVP 이후 아래 단계로 서비스를 확장할 계획입니다.
 [Magic "EPF1"][HdrLen][JSON Header: alg, iv, key_id, policy_url, meta { original_ext: "pdf"|"jpg"|... }][GCM Tag][AES-256-GCM Payload]
 ```
 
-- [ ] `.epf` 인코더/디코더 (서버측 Python, 클라이언트측 TypeScript)
-- [ ] DB 스키마 추가:
-  - `access_grants` (node_id, grantee_user_id, expires_at, max_views/prints, view/print_count, allow_download, revoked_at)
-  - `content_keys` (key_id, grant_id, wrapped_cek — 마스터키로 AES-KW wrap)
-- [ ] 정책 검증 API: `GET /api/access/policy?key_id=...` → JWT 검증 → 만료/카운트/취소 확인 → CEK 응답
-- [ ] 카운트 갱신 API: `POST /api/access/{view,print}` → 서버측 증가
-- [ ] **웹 전용 보호 뷰어** (PDF.js 기반)
+- [x] `.epf` 인코더/디코더 (서버측 Python, 클라이언트측 TypeScript)
+- [x] DB 스키마 추가:
+  - `access_grants` (node_id, share_token, grantee_email, expires_at, max_views/prints, view/print_count, allow_download, revoked_at)
+  - `content_keys` (key_id, grant_id, wrapped_cek — 마스터키로 AES-256-GCM wrap)
+  - `audit_logs` (grant_id, action, actor_label, ip_address, user_agent)
+- [x] 정책 검증 API: `GET /api/access/policy?token=...` → 만료/카운트/취소 확인 → CEK 응답
+- [x] 카운트 갱신 API: `POST /api/access/print` → 서버측 증가 (열람은 policy 호출 시 차감)
+- [x] **웹 전용 보호 뷰어** (PDF.js 기반)
   - Canvas-only 렌더링 (텍스트 레이어 제거)
-  - **Getty Images 스타일 가시적 워터마크** — 수신자 이메일/IP를 페이지 전체에 반투명 대각선 오버레이로 합성 (비인가 배포 시 책임 추적용)
-  - 우클릭/선택/인쇄 차단 시도 (deterrent)
+  - **Getty Images 스타일 가시적 워터마크** — 수신자 이메일/열람 시각을 페이지 전체에 대각선 오버레이
+  - 우클릭/복사 차단 시도 (deterrent)
   - 만료/카운트 초과 시 즉시 차단
-- [ ] 공유 UI: "보호 공유" 모달 — 수신자, 만료, 인쇄 횟수, 다운로드 허용 옵션
+- [x] 공유 UI: "보호 공유" 모달 — 수신자, 만료, 열람/인쇄 횟수, 다운로드 허용 옵션
+- [ ] `EPF_MASTER_KEY`를 AWS KMS로 이관 (현재는 env var)
 
 > **결정 사항**:
-> - 내부 포맷은 **PDF로 통일**. 모든 입력은 Phase 2.5에서 PDF로 변환된 뒤 `.epf` 래핑.
 > - 뷰어는 **웹 전용**. 네이티브는 보류.
 > - 위협 모델: 화면 캡처/사진 촬영은 차단 불가능을 명시적으로 수용. **워터마크 기반 책임 추적**으로 대체.
-> - `access_grants.grantee_user_id`가 `users` 테이블 참조 → **Phase 2 선행 필수**.
+> - **접근 주체는 링크 토큰**. 수신자가 castor 계정 없이도 열람할 수 있어야 하므로
+>   `grantee_user_id` FK 대신 추측 불가능한 256비트 `share_token`을 자격 증명으로 쓴다.
+>   `grantee_email`은 워터마크 표시용이며 인증 수단이 아니다.
+> - **`.epf`는 저장하지 않는다**. S3에는 평문 원본만 두고 요청 시점에 감싸서 스트리밍하므로,
+>   유출될 수 있는 영구 암호문 사본이 생기지 않는다.
+> - 배포 절차와 상세 위협 모델은 [docs/DEPLOY.md](docs/DEPLOY.md) 참고.
 
 ### Phase 4 — 온라인 뷰 & 공동 작업 (4~8주)
 - [ ] 온라인 미리보기: PDF.js, 이미지, 텍스트, 코드 하이라이팅

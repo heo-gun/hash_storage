@@ -29,3 +29,9 @@ COGNITO_JWKS_URL = f"{COGNITO_ISSUER}/.well-known/jwks.json" if COGNITO_ISSUER e
 
 # 인증 우회 (로컬 개발 시 true로 설정하면 X-Debug-User-Sub 헤더로 유저 흉내)
 AUTH_DEV_BYPASS = os.getenv("AUTH_DEV_BYPASS", "false").lower() == "true"
+
+# ── Phase 3: .epf 보호 공유 ─────────────────────────────────
+# CEK 를 감싸는 마스터키 (base64 32바이트). 미설정 시 공유 API 가 503 을 반환한다.
+EPF_MASTER_KEY = os.getenv("EPF_MASTER_KEY", "")
+# 공유 링크를 만들 때 쓰는 사용자용 베이스 URL (예: https://castorfs.org)
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")

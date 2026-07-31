@@ -1,32 +1,11 @@
+# 프로덕션 DB 는 RDS 를 쓴다. postgres 컨테이너는 없으며,
+# infra/postgres/init/*.sql 은 psql 로 직접 적용해야 한다 (docs/DEPLOY.md 참고).
 services:
-  postgres:
-    image: postgres:17-alpine
-    container_name: fms-postgres
-    restart: always
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    # 프로덕션: DB 포트 외부 노출 안 함
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./infra/postgres/init:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    networks:
-      - internal
-
   backend:
     build:
       context: ./backend
     container_name: fms-backend
     restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
       FLASK_APP: run.py
       FLASK_ENV: production
@@ -35,8 +14,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
 
       # AWS S3: IAM Role 사용 시 빈 값으로 명시 (config.py 기본값 덮어쓰기 위함)
       S3_ENDPOINT_URL: ""
@@ -51,6 +30,10 @@ services:
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID}
       AUTH_DEV_BYPASS: "false"
+
+      # .epf 보호 공유 (Phase 3)
+      EPF_MASTER_KEY: ${EPF_MASTER_KEY}
+      PUBLIC_BASE_URL: https://${DOMAIN}
     # 포트 외부 노출 없음 (Nginx가 내부 프록시)
     networks:
       - internal
@@ -100,7 +83,6 @@ services:
       - internal
 
 volumes:
-  postgres_data:
   certbot_webroot:
 
 networks:

@@ -2,9 +2,12 @@ from flask import Blueprint
 
 bp = Blueprint("main", __name__)
 
+from app.routes import access  # noqa: E402,F401
 from app.routes import admin  # noqa: E402,F401
 from app.routes import auth  # noqa: E402,F401
 from app.routes import folders  # noqa: E402,F401
 from app.routes import health  # noqa: E402,F401
 from app.routes import nodes  # noqa: E402,F401
+from app.routes import search  # noqa: E402,F401
+from app.routes import shares  # noqa: E402,F401
 from app.routes import upload  # noqa: E402,F401

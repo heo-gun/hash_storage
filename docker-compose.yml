@@ -88,6 +88,11 @@ services:
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       AUTH_DEV_BYPASS: ${AUTH_DEV_BYPASS:-true}
+
+      # .epf 보호 공유 (Phase 3). 개발 기본값은 고정 더미 키다.
+      # 프로덕션에서는 반드시 .env 의 EPF_MASTER_KEY 로 덮어쓸 것.
+      EPF_MASTER_KEY: ${EPF_MASTER_KEY:-Y2FzdG9yLWRldi1vbmx5LWtleS1ub3QtZm9yLXByb2Q=}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5173}
     ports:
       - "5000:5000"
     volumes:

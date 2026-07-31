@@ -4,10 +4,12 @@ import {
   FolderOpen,
   Inbox,
   Loader2,
+  Share2,
   Trash2,
 } from "lucide-react";
 import clsx from "clsx";
-import type { FsNode } from "../../types/fs";
+import type { FsNode, Visibility } from "../../types/fs";
+import { VISIBILITY_META } from "./VisibilityPicker";
 
 type Props = {
   nodes: FsNode[];
@@ -17,7 +19,19 @@ type Props = {
   onOpenFolder: (node: FsNode) => void;
   onDownload: (node: FsNode) => void;
   onDelete: (node: FsNode) => void;
+  onChangeVisibility: (node: FsNode, next: Visibility) => void;
+  onShare: (node: FsNode) => void;
 };
+
+/** 보호 공유는 PDF/이미지만 지원 (백엔드 epf_service.is_protectable 과 일치). */
+const PROTECTABLE_EXT = /\.(pdf|png|jpe?g|gif|webp|bmp|tiff?|avif)$/i;
+
+const VISIBILITY_CYCLE: Visibility[] = ["private", "public", "shared"];
+
+function nextVisibility(current: Visibility): Visibility {
+  const i = VISIBILITY_CYCLE.indexOf(current);
+  return VISIBILITY_CYCLE[(i + 1) % VISIBILITY_CYCLE.length];
+}
 
 export function NodeListTable({
   nodes,
@@ -27,6 +41,8 @@ export function NodeListTable({
   onOpenFolder,
   onDownload,
   onDelete,
+  onChangeVisibility,
+  onShare,
 }: Props) {
   return (
     <section className="p-6" aria-labelledby="list-heading">
@@ -71,6 +87,7 @@ export function NodeListTable({
               <tr className="border-b border-hairline bg-surface-2/60 font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-ink-subtle">
                 <th className="px-4 py-3">Name</th>
                 <th className="hidden px-4 py-3 sm:table-cell">Type</th>
+                <th className="px-4 py-3">Access</th>
                 <th className="hidden px-4 py-3 md:table-cell">Hash</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -111,6 +128,31 @@ export function NodeListTable({
                       {node.node_type}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const meta = VISIBILITY_META[node.visibility];
+                      const Icon = meta.Icon;
+                      const next = nextVisibility(node.visibility);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => onChangeVisibility(node, next)}
+                          title={`${meta.hint} 클릭하면 ${VISIBILITY_META[next].label} 로 바꿉니다.`}
+                          className={clsx(
+                            "inline-flex items-center gap-1.5 rounded-xs px-2 py-0.5 font-mono text-[11px] transition-colors duration-200",
+                            node.visibility === "public"
+                              ? "bg-accent/10 text-accent hover:bg-accent/20"
+                              : node.visibility === "shared"
+                                ? "bg-amber-400/10 text-amber-300 hover:bg-amber-400/20"
+                                : "bg-surface-3 text-ink-muted hover:text-ink"
+                          )}
+                        >
+                          <Icon className="h-3 w-3" aria-hidden />
+                          {meta.label}
+                        </button>
+                      );
+                    })()}
+                  </td>
                   <td className="hidden font-mono text-[11px] text-ink-subtle md:table-cell">
                     {node.hash_id ? `${node.hash_id.slice(0, 12)}…` : "—"}
                   </td>
@@ -125,6 +167,17 @@ export function NodeListTable({
                           Open
                         </button>
                       )}
+                      {node.node_type === "file" &&
+                        PROTECTABLE_EXT.test(node.name) && (
+                          <button
+                            type="button"
+                            onClick={() => onShare(node)}
+                            className="inline-flex items-center gap-1 rounded-md border border-accent/25 bg-accent/5 px-3 py-1 text-xs font-medium text-accent transition-colors duration-200 hover:bg-accent/10"
+                          >
+                            <Share2 className="h-3 w-3" aria-hidden />
+                            Share
+                          </button>
+                        )}
                       {node.node_type === "file" && (
                         <button
                           type="button"

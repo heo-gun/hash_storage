@@ -1,4 +1,8 @@
+import { useState } from "react";
+
 import { useFileManager } from "../hooks/useFileManager";
+import { ShareModal } from "../components/file-manager/ShareModal";
+import type { FsNode } from "../types/fs";
 import { AppHeader } from "../components/file-manager/AppHeader";
 import { LocationSection } from "../components/file-manager/LocationSection";
 import { FolderCreateCard } from "../components/file-manager/FolderCreateCard";
@@ -8,6 +12,7 @@ import { NodeListTable } from "../components/file-manager/NodeListTable";
 
 export function AppPage() {
   const fm = useFileManager();
+  const [sharing, setSharing] = useState<FsNode | null>(null);
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
@@ -38,9 +43,13 @@ export function AppPage() {
               onSubmit={fm.handleCreateFolder}
             />
             <UploadCard
-              selectedFile={fm.selectedFile}
-              loading={fm.loading}
-              onFileChange={fm.setSelectedFile}
+              queue={fm.queue}
+              uploading={fm.uploading}
+              visibility={fm.visibility}
+              onVisibilityChange={fm.setVisibility}
+              onAddFiles={fm.addFiles}
+              onRemoveItem={fm.removeQueueItem}
+              onClearQueue={fm.clearQueue}
               onUpload={fm.handleUpload}
             />
           </div>
@@ -55,9 +64,15 @@ export function AppPage() {
             onOpenFolder={fm.openFolder}
             onDownload={fm.handleDownload}
             onDelete={fm.handleDelete}
+            onChangeVisibility={fm.handleChangeVisibility}
+            onShare={setSharing}
           />
         </div>
       </div>
+
+      {sharing && (
+        <ShareModal node={sharing} onClose={() => setSharing(null)} />
+      )}
     </div>
   );
 }
