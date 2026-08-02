@@ -14,7 +14,7 @@ export const VISIBILITY_META: Record<
   },
   shared: {
     label: "Shared",
-    hint: "지정한 사람만 접근할 수 있습니다.",
+    hint: "공유 링크를 받은 사람만 접근합니다. 링크는 이 상태에서만 만들 수 있습니다.",
     Icon: Users,
   },
 };

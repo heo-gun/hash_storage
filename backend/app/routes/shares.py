@@ -1,4 +1,5 @@
 """보호 공유 관리 — 소유자용 (인증 필요)."""
+import re
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 
@@ -9,9 +10,13 @@ from app.config import PUBLIC_BASE_URL
 from app.db import get_db_connection
 from app.routes import bp
 from app.services.epf_service import EpfError, generate_cek, is_protectable, wrap_cek
-from app.services.share_service import new_share_token
+from app.services.share_service import new_share_token, normalize_email
 
 MAX_EXPIRES_DAYS = 365
+MAX_RECIPIENTS = 20
+
+# 형식만 거른다. 실제 도달 가능성은 검증하지 않는다(수신 확인 수단이 아님).
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$")
 
 
 def _share_url(token: str) -> str:
@@ -38,6 +43,36 @@ def _optional_int(data: dict, key: str, *, allow_zero: bool = False) -> int | No
     return n
 
 
+def _recipients(data: dict) -> list[str | None]:
+    """수신자 목록을 정규화. 빈 목록이면 [None] = "링크를 아는 누구나" 1건.
+
+    수신자마다 별도 grant(=별도 토큰)를 발급한다. 한 토큰을 여러 명이 나눠
+    쓰면 개별 취소도, 누가 열었는지 구분도 불가능해진다.
+    """
+    raw = data.get("grantee_emails")
+    if raw is None:
+        # 이전 단수 필드도 계속 받는다.
+        raw = [data["grantee_email"]] if data.get("grantee_email") else []
+    if not isinstance(raw, list):
+        raise ValueError("grantee_emails 는 배열이어야 합니다")
+
+    seen: list[str | None] = []
+    for item in raw:
+        email = normalize_email(item if isinstance(item, str) else None)
+        if email is None:
+            continue
+        if not EMAIL_RE.match(email):
+            raise ValueError(f"올바른 이메일이 아닙니다: {item}")
+        if email not in seen:
+            seen.append(email)
+
+    if not seen:
+        return [None]
+    if len(seen) > MAX_RECIPIENTS:
+        raise ValueError(f"수신자는 최대 {MAX_RECIPIENTS}명까지입니다")
+    return seen
+
+
 @bp.route("/shares", methods=["POST"])
 @require_auth
 def create_share():
@@ -52,6 +87,7 @@ def create_share():
         max_views = _optional_int(data, "max_views")
         max_prints = _optional_int(data, "max_prints", allow_zero=True)
         expires_in_days = _optional_int(data, "expires_in_days")
+        recipients = _recipients(data)
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
 
@@ -63,14 +99,14 @@ def create_share():
         if expires_in_days
         else None
     )
-    grantee_email = (data.get("grantee_email") or "").strip() or None
     allow_download = bool(data.get("allow_download"))
+    shares = []
 
     with closing(get_db_connection()) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT n.node_id, n.name, b.mime_type
+                SELECT n.node_id, n.name, n.visibility, b.mime_type
                 FROM fs_nodes n
                 LEFT JOIN file_blobs b ON n.hash_id = b.hash_id
                 WHERE n.node_id = %s AND n.owner_id = %s AND n.node_type = 'file'
@@ -81,56 +117,62 @@ def create_share():
             if not node:
                 return jsonify({"message": "File not found"}), 404
 
+            # 공개 범위가 곧 공유 의도다. private/public 인 파일에 링크를 발급하면
+            # 목록에 표시된 범위와 실제 접근 가능 범위가 어긋난다.
+            if node["visibility"] != "shared":
+                return jsonify({
+                    "message": "공개 범위를 Shared 로 바꾼 뒤에 공유할 수 있습니다",
+                    "visibility": node["visibility"],
+                }), 409
+
             if not is_protectable(node["mime_type"]):
                 return jsonify({
                     "message": "보호 공유는 PDF 와 이미지 파일만 지원합니다",
                     "mime_type": node["mime_type"],
                 }), 415
 
-            try:
-                wrapped = wrap_cek(generate_cek())
-            except EpfError as e:
-                # 마스터키 미설정은 운영 설정 문제이므로 503 이 맞다.
-                return jsonify({"message": str(e)}), 503
+            for grantee_email in recipients:
+                try:
+                    wrapped = wrap_cek(generate_cek())
+                except EpfError as e:
+                    # 마스터키 미설정은 운영 설정 문제이므로 503 이 맞다.
+                    return jsonify({"message": str(e)}), 503
 
-            token = new_share_token()
-            cur.execute(
-                """
-                INSERT INTO access_grants
-                    (node_id, grantor_id, share_token, grantee_email,
-                     expires_at, max_views, max_prints, allow_download)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING grant_id, created_at
-                """,
-                (node_id, owner_id, token, grantee_email, expires_at,
-                 max_views, max_prints, allow_download),
-            )
-            grant = cur.fetchone()
+                token = new_share_token()
+                cur.execute(
+                    """
+                    INSERT INTO access_grants
+                        (node_id, grantor_id, share_token, grantee_email,
+                         expires_at, max_views, max_prints, allow_download)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING grant_id, created_at
+                    """,
+                    (node_id, owner_id, token, grantee_email, expires_at,
+                     max_views, max_prints, allow_download),
+                )
+                grant = cur.fetchone()
 
-            cur.execute(
-                "INSERT INTO content_keys (grant_id, wrapped_cek) VALUES (%s, %s)",
-                (grant["grant_id"], wrapped),
-            )
+                cur.execute(
+                    "INSERT INTO content_keys (grant_id, wrapped_cek) VALUES (%s, %s)",
+                    (grant["grant_id"], wrapped),
+                )
 
-            # 공유된 파일은 목록에서 'shared' 로 보이게 한다.
-            cur.execute(
-                "UPDATE fs_nodes SET visibility = 'shared' "
-                "WHERE node_id = %s AND owner_id = %s AND visibility = 'private'",
-                (node_id, owner_id),
-            )
+                shares.append({
+                    "grant_id": grant["grant_id"],
+                    "share_url": _share_url(token),
+                    "grantee_email": grantee_email,
+                    "created_at": grant["created_at"],
+                })
+
             conn.commit()
 
     return jsonify({
-        "grant_id": grant["grant_id"],
-        "share_token": token,
-        "share_url": _share_url(token),
         "file_name": node["name"],
         "expires_at": expires_at.isoformat() if expires_at else None,
         "max_views": max_views,
         "max_prints": max_prints,
         "allow_download": allow_download,
-        "grantee_email": grantee_email,
-        "created_at": grant["created_at"],
+        "shares": shares,
     }), 201
 
 

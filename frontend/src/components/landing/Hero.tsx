@@ -66,7 +66,7 @@ export function Hero() {
           className="mt-9 flex items-center justify-center gap-3"
         >
           <Link
-            to="/app"
+            to="/signup"
             className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-canvas font-medium text-sm h-11 px-6 rounded-full transition-colors duration-200 ease-out-soft"
           >
             Start for free

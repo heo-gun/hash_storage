@@ -13,6 +13,10 @@ from app.services.node_service import VISIBILITIES
 from app.services.user_service import adjust_used_bytes
 from app.storage import get_s3_client
 
+# 그래프 뷰가 한 번에 받아갈 최대 노드 수. 이보다 크면 브라우저 쪽 힘 시뮬레이션이
+# 먼저 무너지므로, 잘라 보내고 잘렸다는 사실을 알린다.
+TREE_NODE_LIMIT = 5000
+
 
 @bp.route("/nodes", methods=["GET"])
 @require_auth
@@ -47,6 +51,44 @@ def get_nodes():
             rows = cur.fetchall()
 
     return jsonify(rows)
+
+
+@bp.route("/nodes/tree", methods=["GET"])
+@require_auth
+def get_node_tree():
+    """소유자의 전체 노드를 한 번에 반환 — 그래프 뷰용.
+
+    /nodes 는 parent_id 한 단계씩만 주므로 그래프를 그리려면 폴더 수만큼
+    왕복해야 한다. 여기서는 단일 쿼리로 끝낸다.
+
+    file_blobs.ref_count 는 내보내지 않는다. 그것은 전역 참조 수라서 다른
+    사용자가 같은 파일을 갖고 있는지까지 알려준다. 화면에 필요한 "내 트리
+    안에서 몇 번 등장하는가"는 클라이언트가 hash_id 로 묶어 세면 된다.
+    """
+    owner_id = g.current_user["user_id"]
+
+    with closing(get_db_connection()) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT n.node_id, n.parent_id, n.node_type, n.name, n.hash_id,
+                       n.visibility, n.created_at, b.size_bytes, b.mime_type
+                FROM fs_nodes n
+                LEFT JOIN file_blobs b ON n.hash_id = b.hash_id
+                WHERE n.owner_id = %s
+                ORDER BY n.node_type DESC, n.name ASC
+                LIMIT %s
+                """,
+                (owner_id, TREE_NODE_LIMIT + 1),
+            )
+            rows = cur.fetchall()
+
+    truncated = len(rows) > TREE_NODE_LIMIT
+    return jsonify({
+        "nodes": rows[:TREE_NODE_LIMIT],
+        "truncated": truncated,
+        "limit": TREE_NODE_LIMIT,
+    })
 
 
 @bp.route("/nodes/<node_id>/download", methods=["GET"])
@@ -108,8 +150,24 @@ def update_node_visibility(node_id):
             row = cur.fetchone()
             if not row:
                 return jsonify({"message": "Node not found"}), 404
+
+            # 'shared' 를 벗어나면 살아있는 공유 링크도 같이 끊는다. 그러지 않으면
+            # 목록엔 Private 인데 예전 링크로는 계속 열람되는 상태가 된다.
+            revoked = 0
+            if visibility != "shared":
+                cur.execute(
+                    """
+                    UPDATE access_grants SET revoked_at = now()
+                    WHERE node_id = %s AND grantor_id = %s AND revoked_at IS NULL
+                    RETURNING grant_id
+                    """,
+                    (node_id, owner_id),
+                )
+                revoked = len(cur.fetchall())
+
             conn.commit()
 
+    row["revoked_shares"] = revoked
     return jsonify(row)
 
 

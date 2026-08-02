@@ -1,3 +1,7 @@
+import { Link } from "react-router-dom";
+
+import { GITHUB_REPO_URL } from "./links";
+
 export function Footer() {
   return (
     <footer className="border-t border-hairline py-12">
@@ -7,9 +11,28 @@ export function Footer() {
           <span className="font-mono text-xs text-ink-subtle">v0.1.0</span>
         </div>
         <div className="flex items-center gap-7 text-sm text-ink-subtle">
-          <a href="https://github.com/" className="hover:text-ink transition-colors duration-200 ease-out-soft">GitHub</a>
-          <a href="#" className="hover:text-ink transition-colors duration-200 ease-out-soft">Security</a>
-          <a href="#" className="hover:text-ink transition-colors duration-200 ease-out-soft">Privacy</a>
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-ink transition-colors duration-200 ease-out-soft"
+          >
+            GitHub
+          </a>
+          <a
+            href={`${GITHUB_REPO_URL}/blob/main/docs/DEPLOY.md`}
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-ink transition-colors duration-200 ease-out-soft"
+          >
+            Security
+          </a>
+          <Link
+            to="/search"
+            className="hover:text-ink transition-colors duration-200 ease-out-soft"
+          >
+            Explore
+          </Link>
           <span className="text-ink-dim">© 2026</span>
         </div>
       </div>

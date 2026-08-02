@@ -12,14 +12,57 @@ TOKEN_BYTES = 32  # 256비트 — 무차별 대입 불가
 
 
 class PolicyDenied(Exception):
-    def __init__(self, reason: str, status: int = 403):
+    def __init__(self, reason: str, status: int = 403, code: str | None = None):
         super().__init__(reason)
         self.reason = reason
         self.status = status
+        # 프론트가 "로그인하면 열린다"와 "이 계정으로는 못 연다"를 구분해야 해서
+        # 사람이 읽는 문구 말고 기계가 읽는 코드도 같이 준다.
+        self.code = code
 
 
 def new_share_token() -> str:
     return secrets.token_urlsafe(TOKEN_BYTES)
+
+
+def normalize_email(value: str | None) -> str | None:
+    """비교와 저장에 쓸 정규형. 대소문자만 맞춘다(도메인 alias 는 건드리지 않음)."""
+    email = (value or "").strip().lower()
+    return email or None
+
+
+def mask_email(email: str | None) -> str | None:
+    """미인증 방문자에게 '누구에게 발급됐는지' 힌트만 준다. 전체는 노출 금지."""
+    if not email or "@" not in email:
+        return None
+    local, _, domain = email.partition("@")
+    head = local[0] if local else "*"
+    return f"{head}{'*' * max(len(local) - 1, 1)}@{domain}"
+
+
+def assert_recipient(grant: dict, user: dict | None) -> None:
+    """수신자 지정 공유라면 로그인 사용자의 이메일이 일치해야 한다.
+
+    grantee_email 이 NULL 이면 링크를 아는 누구나 열람 가능(기존 동작).
+    지정돼 있으면 링크 토큰만으로는 부족하고 신원 확인까지 요구한다.
+    """
+    expected = normalize_email(grant.get("grantee_email"))
+    if expected is None:
+        return
+
+    if user is None:
+        raise PolicyDenied(
+            "이 문서는 지정된 수신자에게만 발급되었습니다. 로그인해 주세요.",
+            401,
+            code="auth_required",
+        )
+
+    if normalize_email(user.get("email")) != expected:
+        raise PolicyDenied(
+            "이 계정은 이 문서의 수신자가 아닙니다.",
+            403,
+            code="recipient_mismatch",
+        )
 
 
 def _client_ip() -> str | None:

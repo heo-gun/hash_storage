@@ -2,11 +2,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Download, Loader2, Lock, Printer, ShieldAlert } from "lucide-react";
 
+import { tokenStorage } from "../auth/storage";
 import { PdfCanvas } from "../components/viewer/PdfCanvas";
 import { Watermark } from "../components/viewer/Watermark";
 import { decodeEpf, importCek, type EpfHeader } from "../epf/decode";
 import { publicApi } from "../services/api";
-import { getApiErrorMessage } from "../utils/apiError";
+import {
+  getApiErrorCode,
+  getApiErrorHint,
+  getApiErrorMessage,
+} from "../utils/apiError";
+
+/**
+ * 수신자를 지정한 공유는 링크 토큰만으로는 열리지 않고 이메일 일치까지 요구한다.
+ * publicApi 에는 인터셉터가 없으므로 로그인 상태면 여기서 직접 붙인다.
+ */
+function authHeaders(): Record<string, string> {
+  const t = tokenStorage.get();
+  return t ? { Authorization: `Bearer ${t.idToken}` } : {};
+}
 
 type Policy = {
   file_name: string;
@@ -30,6 +44,11 @@ export function ProtectedViewPage() {
   const [loading, setLoading] = useState(true);
   const [printNote, setPrintNote] = useState<string | null>(null);
   const [openedAt] = useState(() => new Date().toLocaleString());
+  // "로그인하면 열린다" 와 "이 계정으로는 못 연다" 를 화면에서 구분해야 한다.
+  const [denial, setDenial] = useState<{
+    code: string;
+    hint: string | null;
+  } | null>(null);
 
   // StrictMode 의 이중 실행으로 열람 횟수가 2회 차감되는 것을 막는다.
   const started = useRef(false);
@@ -41,7 +60,10 @@ export function ProtectedViewPage() {
     (async () => {
       try {
         // 1) 정책 확인 + CEK 수령 (여기서 열람 1회가 소비된다)
-        const pol = await publicApi.get("/access/policy", { params: { token } });
+        const pol = await publicApi.get("/access/policy", {
+          params: { token },
+          headers: authHeaders(),
+        });
         setPolicy(pol.data.policy);
         const cek = await importCek(pol.data.cek);
 
@@ -49,6 +71,7 @@ export function ProtectedViewPage() {
         const enc = await publicApi.get("/access/content", {
           params: { token },
           responseType: "arraybuffer",
+          headers: authHeaders(),
         });
         const { header: hdr, payload: plain } = await decodeEpf(enc.data, cek);
 
@@ -60,6 +83,10 @@ export function ProtectedViewPage() {
           );
         }
       } catch (e) {
+        const code = getApiErrorCode(e);
+        if (code === "auth_required" || code === "recipient_mismatch") {
+          setDenial({ code, hint: getApiErrorHint(e) });
+        }
         setError(getApiErrorMessage(e, "문서를 열 수 없습니다."));
       } finally {
         setLoading(false);
@@ -88,7 +115,11 @@ export function ProtectedViewPage() {
   const handlePrint = useCallback(async () => {
     setPrintNote(null);
     try {
-      const res = await publicApi.post("/access/print", { token });
+      const res = await publicApi.post(
+        "/access/print",
+        { token },
+        { headers: authHeaders() }
+      );
       const left = res.data.prints_remaining;
       setPrintNote(
         left < 0 ? "인쇄를 시작합니다." : `인쇄를 시작합니다. ${left}회 남음.`
@@ -99,9 +130,30 @@ export function ProtectedViewPage() {
     }
   }, [token]);
 
-  function handleDownload() {
-    const base = publicApi.defaults.baseURL ?? "";
-    window.open(`${base}/access/download?token=${encodeURIComponent(token)}`, "_blank");
+  /**
+   * window.open 으로는 Authorization 헤더를 실을 수 없어서, 수신자 지정 공유의
+   * 다운로드가 401 로 막힌다. blob 으로 받아 앵커로 저장한다.
+   */
+  async function handleDownload() {
+    setPrintNote(null);
+    try {
+      const res = await publicApi.get("/access/download", {
+        params: { token },
+        responseType: "blob",
+        headers: authHeaders(),
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = policy?.file_name ?? "download";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setPrintNote(getApiErrorMessage(e, "다운로드할 수 없습니다."));
+    }
   }
 
   if (loading) {
@@ -128,9 +180,30 @@ export function ProtectedViewPage() {
             Access denied
           </p>
           <p className="mt-3 text-sm text-ink-muted">{error}</p>
+
+          {denial?.hint && (
+            <p className="mt-2 font-mono text-[11px] text-ink-subtle">
+              수신자: {denial.hint}
+            </p>
+          )}
+
+          {denial?.code === "auth_required" ? (
+            <Link
+              to="/login"
+              state={{ from: `/view/${token}` }}
+              className="mt-6 inline-block rounded-md bg-accent px-4 py-2 text-sm font-medium text-canvas transition-colors duration-200 hover:bg-accent-hover"
+            >
+              로그인하고 열람하기
+            </Link>
+          ) : denial?.code === "recipient_mismatch" ? (
+            <p className="mt-6 text-sm text-ink-subtle">
+              수신자 계정으로 다시 로그인해 주세요.
+            </p>
+          ) : null}
+
           <Link
             to="/"
-            className="mt-6 inline-block text-sm text-accent transition-colors duration-200 hover:text-accent-hover"
+            className="mt-6 block text-sm text-accent transition-colors duration-200 hover:text-accent-hover"
           >
             castor 홈으로
           </Link>

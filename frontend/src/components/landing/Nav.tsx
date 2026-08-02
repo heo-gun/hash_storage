@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { Github } from "lucide-react";
 
+import { GITHUB_REPO_URL } from "./links";
+
 export function Nav() {
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-canvas/70 backdrop-blur-md border-b border-hairline">
@@ -21,14 +23,14 @@ export function Nav() {
           <a href="#how-it-works" className="hover:text-ink transition-colors duration-200 ease-out-soft">
             How it works
           </a>
-          <a href="#pricing" className="hover:text-ink transition-colors duration-200 ease-out-soft">
-            Pricing
+          <a href="#graph" className="hover:text-ink transition-colors duration-200 ease-out-soft">
+            Graph
           </a>
           <Link to="/search" className="hover:text-ink transition-colors duration-200 ease-out-soft">
             Explore
           </Link>
           <a
-            href="https://github.com/"
+            href={GITHUB_REPO_URL}
             target="_blank"
             rel="noreferrer"
             className="hover:text-ink transition-colors duration-200 ease-out-soft inline-flex items-center gap-1.5"
@@ -39,13 +41,13 @@ export function Nav() {
 
         <div className="flex items-center gap-2">
           <Link
-            to="/app"
+            to="/login"
             className="text-sm text-ink-muted hover:text-ink px-3 py-2 rounded-md transition-colors duration-200 ease-out-soft"
           >
             Sign in
           </Link>
           <Link
-            to="/app"
+            to="/signup"
             className="text-sm text-canvas bg-accent hover:bg-accent-hover font-medium px-4 py-2 rounded-md transition-colors duration-200 ease-out-soft"
           >
             Get started

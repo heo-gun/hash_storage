@@ -39,6 +39,21 @@ def _resolve_user() -> dict:
     return user
 
 
+def resolve_optional_user() -> dict | None:
+    """토큰이 있으면 사용자를, 없거나 유효하지 않으면 None 을 반환.
+
+    비회원도 들어올 수 있는 경로(/access/*)에서 "로그인했으면 누구인지"만
+    알고 싶을 때 쓴다. 인증 실패를 401 로 바꾸지 않는 것이 require_auth 와의
+    차이 — 거부 여부는 호출한 쪽의 정책이 정한다.
+    """
+    if not AUTH_DEV_BYPASS and not request.headers.get("Authorization"):
+        return None
+    try:
+        return _resolve_user()
+    except AuthError:
+        return None
+
+
 def require_auth(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):

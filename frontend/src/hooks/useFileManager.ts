@@ -286,9 +286,19 @@ export function useFileManager() {
       )
     );
     try {
-      await api.patch(`/nodes/${node.node_id}/visibility`, {
-        visibility: next,
-      });
+      const res = await api.patch<{ revoked_shares?: number }>(
+        `/nodes/${node.node_id}/visibility`,
+        { visibility: next }
+      );
+      // Shared 를 벗어나면 서버가 기존 링크를 끊는다. 조용히 끊으면 사용자가
+      // 아직 살아있다고 착각하므로 몇 개가 끊겼는지 알린다.
+      const revoked = res.data?.revoked_shares ?? 0;
+      if (revoked > 0) {
+        setBanner({
+          text: `공개 범위를 바꾸면서 기존 공유 링크 ${revoked}개를 취소했습니다.`,
+          tone: "neutral",
+        });
+      }
     } catch (error) {
       console.error(error);
       setBanner({
@@ -305,6 +315,13 @@ export function useFileManager() {
       ...prev,
       { node_id: node.node_id, name: node.name },
     ]);
+  }
+
+  /** 그래프에서 폴더를 골랐을 때처럼, 중간 단계를 거치지 않고 경로로 바로 이동. */
+  function jumpToPath(path: BreadcrumbItem[]) {
+    const next = [{ node_id: null, name: "루트" }, ...path];
+    setBreadcrumbs(next);
+    setCurrentParentId(next[next.length - 1].node_id);
   }
 
   function moveToBreadCrumb(index: number) {
@@ -338,6 +355,7 @@ export function useFileManager() {
     handleDelete,
     handleChangeVisibility,
     openFolder,
+    jumpToPath,
     moveToBreadCrumb,
   };
 }

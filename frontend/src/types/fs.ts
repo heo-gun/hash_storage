@@ -13,6 +13,28 @@ export type FsNode = {
   updated_at: string;
 };
 
+/**
+ * GET /nodes/tree 가 주는 행. FsNode 에 blob 메타가 붙은 형태로, 그래프 뷰가
+ * hash_id 로 파일을 묶을 때 쓴다.
+ */
+export type TreeNode = {
+  node_id: string;
+  parent_id: string | null;
+  node_type: NodeType;
+  name: string;
+  hash_id: string | null;
+  visibility: Visibility;
+  created_at: string;
+  size_bytes: number | null;
+  mime_type: string | null;
+};
+
+export type TreeResponse = {
+  nodes: TreeNode[];
+  truncated: boolean;
+  limit: number;
+};
+
 /** 업로드 큐의 한 항목. relPath 는 폴더 업로드 시의 상대 경로(빈 문자열이면 현재 폴더). */
 export type UploadItem = {
   id: string;

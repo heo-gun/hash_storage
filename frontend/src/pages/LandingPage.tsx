@@ -2,6 +2,7 @@ import { Nav } from "../components/landing/Nav";
 import { Hero } from "../components/landing/Hero";
 import { Features } from "../components/landing/Features";
 import { HowItWorks } from "../components/landing/HowItWorks";
+import { GraphShowcase } from "../components/landing/GraphShowcase";
 import { Footer } from "../components/landing/Footer";
 
 export function LandingPage() {
@@ -12,6 +13,7 @@ export function LandingPage() {
         <Hero />
         <Features />
         <HowItWorks />
+        <GraphShowcase />
       </main>
       <Footer />
     </div>

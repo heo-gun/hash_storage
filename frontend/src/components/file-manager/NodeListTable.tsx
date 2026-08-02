@@ -167,7 +167,9 @@ export function NodeListTable({
                           Open
                         </button>
                       )}
+                      {/* 공개 범위가 Shared 일 때만 공유할 수 있다 (백엔드도 409 로 막는다) */}
                       {node.node_type === "file" &&
+                        node.visibility === "shared" &&
                         PROTECTABLE_EXT.test(node.name) && (
                           <button
                             type="button"

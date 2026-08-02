@@ -180,6 +180,51 @@ def test_policy_view_unlimited_is_minus_one():
     assert view["prints_remaining"] == -1
 
 
+# ── assert_recipient ───────────────────────────────────────────
+
+def test_open_link_needs_no_identity():
+    """grantee_email 이 없으면 링크를 아는 누구나 (기존 동작 유지)."""
+    ss.assert_recipient(make_grant(grantee_email=None), None)
+
+
+def test_named_recipient_requires_login():
+    with pytest.raises(ss.PolicyDenied) as e:
+        ss.assert_recipient(make_grant(grantee_email="r@example.com"), None)
+    assert e.value.status == 401
+    assert e.value.code == "auth_required"
+
+
+def test_wrong_account_is_rejected():
+    grant = make_grant(grantee_email="r@example.com")
+    with pytest.raises(ss.PolicyDenied) as e:
+        ss.assert_recipient(grant, {"email": "someone@else.com"})
+    assert e.value.status == 403
+    assert e.value.code == "recipient_mismatch"
+
+
+def test_matching_recipient_passes():
+    grant = make_grant(grantee_email="r@example.com")
+    ss.assert_recipient(grant, {"email": "r@example.com"})
+
+
+def test_recipient_match_ignores_case():
+    """Cognito 는 대소문자를 보존해서 돌려주므로 비교 전에 정규화해야 한다."""
+    grant = make_grant(grantee_email="R@Example.COM")
+    ss.assert_recipient(grant, {"email": "r@example.com"})
+
+
+def test_mask_email_hides_local_part():
+    masked = ss.mask_email("recipient@example.com")
+    assert masked.endswith("@example.com")
+    assert "recipient" not in masked
+    assert masked.startswith("r")
+
+
+def test_mask_email_handles_missing():
+    assert ss.mask_email(None) is None
+    assert ss.mask_email("not-an-email") is None
+
+
 def test_share_tokens_are_unique_and_long():
     tokens = {ss.new_share_token() for _ in range(500)}
     assert len(tokens) == 500
