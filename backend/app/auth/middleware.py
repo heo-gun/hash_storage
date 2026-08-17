@@ -1,8 +1,4 @@
-"""@require_auth 데코레이터.
-
-요청에서 Authorization: Bearer <id_token>을 추출 → Cognito 검증 →
-users 테이블 lazy upsert → flask.g.current_user에 dict 주입.
-"""
+"""인증 검증 후 users 테이블에 lazy upsert 하고 flask.g.current_user 에 주입한다."""
 from contextlib import closing
 from functools import wraps
 
@@ -40,11 +36,10 @@ def _resolve_user() -> dict:
 
 
 def resolve_optional_user() -> dict | None:
-    """토큰이 있으면 사용자를, 없거나 유효하지 않으면 None 을 반환.
+    """인증 실패를 401 로 바꾸지 않는 것이 require_auth 와의 차이다.
 
-    비회원도 들어올 수 있는 경로(/access/*)에서 "로그인했으면 누구인지"만
-    알고 싶을 때 쓴다. 인증 실패를 401 로 바꾸지 않는 것이 require_auth 와의
-    차이 — 거부 여부는 호출한 쪽의 정책이 정한다.
+    비회원도 들어올 수 있는 /access/* 에서 "로그인했으면 누구인지"만 알면 되고,
+    거부 여부는 호출한 쪽의 정책이 정한다.
     """
     if not AUTH_DEV_BYPASS and not request.headers.get("Authorization"):
         return None

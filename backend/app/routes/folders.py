@@ -60,7 +60,7 @@ def create_folder():
 @bp.route("/folders/ensure-path", methods=["POST"])
 @require_auth
 def ensure_folder_path():
-    """경로 세그먼트 배열을 받아 없는 폴더만 만들고 말단 폴더의 node_id를 반환.
+    """없는 폴더만 만들고 말단 폴더의 node_id 를 반환한다.
 
     폴더 업로드에서 파일 하나하나마다 /folders 를 호출하지 않도록 하기 위한 것.
     이미 존재하는 세그먼트는 재사용하므로 여러 번 호출해도 안전(idempotent)하다.

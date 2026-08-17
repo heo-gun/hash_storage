@@ -13,10 +13,7 @@ import {
   getApiErrorMessage,
 } from "../utils/apiError";
 
-/**
- * 수신자를 지정한 공유는 링크 토큰만으로는 열리지 않고 이메일 일치까지 요구한다.
- * publicApi 에는 인터셉터가 없으므로 로그인 상태면 여기서 직접 붙인다.
- */
+/** publicApi 에는 인터셉터가 없으므로, 수신자 지정 공유를 위해 여기서 직접 붙인다. */
 function authHeaders(): Record<string, string> {
   const t = tokenStorage.get();
   return t ? { Authorization: `Bearer ${t.idToken}` } : {};
@@ -130,10 +127,7 @@ export function ProtectedViewPage() {
     }
   }, [token]);
 
-  /**
-   * window.open 으로는 Authorization 헤더를 실을 수 없어서, 수신자 지정 공유의
-   * 다운로드가 401 로 막힌다. blob 으로 받아 앵커로 저장한다.
-   */
+  // window.open 으로는 Authorization 헤더를 실을 수 없어 401 이 난다. blob 으로 받는다.
   async function handleDownload() {
     setPrintNote(null);
     try {

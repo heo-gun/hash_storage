@@ -1,7 +1,4 @@
-"""Cognito ID token 검증.
-
-JWKS는 PyJWKClient가 내부적으로 캐싱(기본 1시간). 프로세스 시작 시 1회 인스턴스화.
-"""
+"""JWKS는 PyJWKClient가 내부적으로 캐싱한다(기본 1시간). 프로세스당 1회만 인스턴스화."""
 import logging
 
 import jwt
@@ -37,10 +34,6 @@ def _get_jwks_client() -> PyJWKClient:
 
 
 def verify_id_token(token: str) -> dict:
-    """Cognito ID token을 JWKS로 검증하고 claims를 반환.
-
-    검증 항목: 서명, 만료, issuer, audience(client_id), token_use=id.
-    """
     if not COGNITO_USER_POOL_ID or not COGNITO_CLIENT_ID:
         raise AuthError("Cognito가 구성되지 않음", 500)
 

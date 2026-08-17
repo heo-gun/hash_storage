@@ -23,10 +23,8 @@ const COLOR = {
 };
 
 /**
- * Obsidian 그래프뷰 스타일 힘 기반 레이아웃.
- *
- * d3 가 SVG 를 직접 만지게 두고 React 는 컨테이너만 소유한다. tick 마다
- * setState 를 돌리면 노드 수백 개에서 바로 버벅인다.
+ * d3 가 SVG 를 직접 만지게 두고 React 는 컨테이너만 소유한다. tick 마다 setState 를
+ * 돌리면 노드 수백 개에서 바로 버벅인다.
  */
 export function ForceGraph({
   graph,

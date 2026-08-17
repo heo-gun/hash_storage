@@ -2,10 +2,7 @@ import { Suspense, lazy } from "react";
 
 import type { Graph } from "./buildGraph";
 
-/**
- * d3 는 100kB 넘게 나가는데, 그래프는 랜딩에서 스크롤을 내리거나 /app 에서 탭을
- * 눌러야 보인다. 초기 번들에서 떼어내 필요할 때만 받는다.
- */
+/** 그래프는 스크롤을 내리거나 탭을 눌러야 보이므로 d3 를 초기 번들에서 떼어낸다. */
 const ForceGraph = lazy(() =>
   import("./ForceGraph").then((m) => ({ default: m.ForceGraph }))
 );

@@ -43,11 +43,10 @@ __pycache__/
 .vscode/
 .idea/
 
-# git worktree 작업 디렉토리. 저장소 루트에서 `git add -A` 하면 별도 저장소로
-# 인식돼 gitlink(깨진 서브모듈)로 커밋된다.
-.claude/worktrees/
+# 에이전트 로컬 설정 및 worktree 작업 디렉토리
+.claude/
 
-# tsc -b 캐시 — 빌드할 때마다 변경으로 잡힌다
+# tsc -b 캐시
 frontend/tsconfig.tsbuildinfo
 
 # Docker / local volumes

@@ -13,10 +13,7 @@ import { getApiErrorMessage } from "../utils/apiError";
 /** 동시에 진행할 업로드 수. 너무 높이면 브라우저 커넥션 한계에 걸린다. */
 const UPLOAD_CONCURRENCY = 4;
 
-/**
- * webkitRelativePath 에서 파일명을 제외한 폴더 세그먼트만 뽑는다.
- * "docs/img/a.png" → ["docs", "img"], "a.png" → []
- */
+/** "docs/img/a.png" → ["docs", "img"], "a.png" → [] */
 function folderSegments(relPath: string): string[] {
   return relPath.split("/").slice(0, -1).filter(Boolean);
 }
@@ -93,7 +90,6 @@ export function useFileManager() {
     }
   }
 
-  /** 파일 선택/폴더 선택 결과를 업로드 큐에 추가. */
   function addFiles(files: FileList | File[] | null) {
     if (!files) return;
     const list = Array.from(files);
@@ -127,11 +123,6 @@ export function useFileManager() {
     );
   }
 
-  /**
-   * 큐에 쌓인 파일을 모두 업로드한다.
-   * 폴더 구조가 있는 항목은 먼저 /folders/ensure-path 로 대상 폴더를 확보하고,
-   * 같은 경로끼리는 결과를 캐시해 중복 호출을 피한다.
-   */
   async function handleUpload() {
     const pending = queue.filter(
       (it) => it.status === "pending" || it.status === "error"

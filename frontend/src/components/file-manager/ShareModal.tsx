@@ -55,7 +55,6 @@ export function ShareModal({ node, onClose }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  /** 초안을 칩으로 확정. 성공하면 true. */
   function commitEmail(): boolean {
     const value = emailDraft.trim().toLowerCase();
     if (!value) return true;

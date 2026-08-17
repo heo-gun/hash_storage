@@ -41,11 +41,9 @@ export type Graph = {
 export const ROOT_ID = "__root__";
 
 /**
- * fs_nodes 목록을 그래프로 변환한다.
- *
- * 핵심: 같은 내용의 파일은 경로마다 별도 fs_nodes 행이지만 hash_id 가 같다.
- * 이것을 노드 하나로 접고 각 부모 폴더에서 엣지를 걸면, 저장소가 실제로
- * 하는 일(내용 한 벌 + 참조 여러 개)이 그대로 그림이 된다.
+ * 같은 내용의 파일은 경로마다 별도 fs_nodes 행이지만 hash_id 가 같다. 이것을 노드
+ * 하나로 접고 각 부모 폴더에서 엣지를 걸면, 저장소가 실제로 하는 일(내용 한 벌 +
+ * 참조 여러 개)이 그대로 그림이 된다.
  */
 export function buildGraph(rows: TreeNode[], rootLabel = "/"): Graph {
   const byId = new Map(rows.map((r) => [r.node_id, r]));

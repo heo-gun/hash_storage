@@ -1,197 +1,192 @@
-# Hash Storage — Content-Addressable File Management System
+# castor — Content-Addressable File Management System
+
+파일을 경로가 아니라 내용의 SHA-256 해시로 식별하는 스토리지. 같은 내용은 저장소에
+한 벌만 존재하고, 경로는 그 한 벌을 가리키는 참조가 된다. PDF·이미지는 만료·열람
+횟수·수신자 제한이 붙은 링크로 공유할 수 있다.
+
+운영 중: https://castorfs.org
 
 ## 1. Core Concepts
 
 **CAS (Content-Addressable Storage)**
-파일의 '경로'가 아닌 '내용(SHA-256 Hash)'을 주소로 저장. 시스템 전체에서 동일한 파일은 단 하나만 존재하며, 나머지는 같은 Hash ID를 가리키는 참조(Reference)로 처리됨 (중복 제거 : deduplication).
+업로드 전 브라우저에서 SHA-256을 계산해 그 값을 주소로 쓴다. 이미 있는 해시면 새로
+저장하지 않고 참조만 추가한다.
 
-**DAG-Tree Indexing**
-폴더 구조를 PostgreSQL 내에서 노드로 연결. 중복 파일은 여러 fs_node가 하나의 hash_id를 가리키는 형태로 구현됨. B-Tree 인덱스를 통해 O(log n) 탐색 보장.
-
-**Virtual File System (VFS)**
-사용자는 익숙한 파일 구조(탐색기)를 보지만, 백엔드에서는 DB 쿼리를 통해 파일 메타데이터를 즉시 반환. 실제 바이너리는 S3에 존재하며 DB에는 메타데이터만 존재.
+**VFS + DAG Indexing**
+사용자에게는 폴더 트리로 보이지만 실체는 `fs_nodes` 행이다. 중복 파일은 여러
+`fs_node`가 하나의 `hash_id`를 가리키는 형태라, 한 노드가 여러 부모를 갖는 그래프가
+된다 (`/app`의 Graph 탭에서 그대로 볼 수 있다).
 
 **Reference Counting GC**
-파일 삭제 시 ref_count를 감소시키고, 0이 되면 S3 오브젝트와 DB 레코드를 함께 삭제. 폴더 삭제 시 하위 트리를 재귀적으로 순회하여 ref_count를 일괄 처리.
+삭제 시 `ref_count`를 감소시키고 0이 되면 S3 오브젝트와 DB 레코드를 함께 삭제한다.
+폴더 삭제는 하위 트리를 순회해 일괄 처리한다.
 
-**S3-backed Storage**
-실제 바이너리 데이터는 AWS S3(로컬 : MinIO)에 Hash값을 Key로 저장. 무한한 확장성과 내구성 확보.
-
----
+**`.epf` 보호 공유**
+PDF·이미지에 한해 콘텐츠 키로 감싼 스트림을 브라우저에서 복호화해 Canvas로 렌더한다.
+암호문은 저장하지 않고 요청 시점에 만든다. 한계는 [docs/DEPLOY.md](docs/DEPLOY.md)의
+위협 모델 참고.
 
 ## 2. Tech Stack
 
 | Field | Tech |
 |------|------|
 | Frontend | React 19 + TypeScript + Vite + Tailwind CSS |
-| 클라이언트 해시 | crypto-js (SHA-256, 업로드 전 계산) |
-| API 통신 | Axios + TanStack React Query |
+| 클라이언트 해시 | Web Crypto API (`crypto.subtle`, 업로드 전 계산) |
+| 그래프 뷰 | d3-force |
+| 보호 뷰어 | PDF.js (Canvas 전용, textLayer 없음) |
+| API 통신 | Axios |
 | Backend | Python 3.12 + Flask 3 + Gunicorn |
-| ORM / DB | SQLAlchemy 2.0 + PostgreSQL (Alpine) |
+| DB 접근 | psycopg 3 (raw SQL) + PostgreSQL 17 |
+| 인증 | AWS Cognito (Google / ID·PW), JWT 검증은 PyJWT + JWKS |
 | 오브젝트 스토리지 | AWS S3 (prod) / MinIO (dev) — Boto3 |
 | 인프라 | Docker Compose + Nginx (리버스 프록시 + HTTPS) |
-
----
 
 ## 3. Data Model
 
 ### `file_blobs` — CAS Layer
 | Column | Explanation |
 |------|------|
-| `hash_id` (PK) | SHA-256 해시, 실제 파일 내용의 주소 |
+| `hash_id` (PK) | SHA-256 해시. 파일 내용의 주소 |
 | `size_bytes` | 파일 크기 |
 | `mime_type` | MIME 타입 |
-| `s3_key` | S3/MinIO 내 오브젝트 경로 |
-| `ref_count` | 참조 카운터 (0 도달 시 GC 대상) |
+| `s3_key` | S3/MinIO 오브젝트 키 (= hash_id) |
+| `ref_count` | 참조 카운터 (0 도달 시 GC) |
 
 ### `fs_nodes` — VFS Layer
 | Column | Explanation |
 |------|------|
 | `node_id` (UUID, PK) | 노드 고유 ID |
-| `parent_id` (FK) | 부모 노드 (self-reference, 폴더 계층) |
+| `owner_id` (FK) | 소유자. 모든 조회에 스코프로 적용 |
+| `parent_id` (FK) | 부모 노드 (self-reference) |
 | `node_type` | `'file'` 또는 `'folder'` |
-| `name` | 파일 또는 폴더 이름 |
-| `hash_id` (FK) | file_blobs 참조 (file 타입만) |
+| `name` | 이름 |
+| `hash_id` (FK) | `file_blobs` 참조 (file 타입만) |
+| `visibility` | `private` / `public` / `shared` |
 
----
+### 공유 레이어
+| Table | Explanation |
+|------|------|
+| `access_grants` | 공유 1건 = 수신자 1명. `share_token`(256비트), 만료·열람/인쇄 한도와 카운터, `grantee_email`, `revoked_at` |
+| `content_keys` | grant별 CEK를 마스터키로 감싼 값 (`wrapped_cek`) |
+| `audit_logs` | 열람·인쇄·다운로드·거부 이력 |
 
-## 4. API Endpoint
+`file_blobs`는 전역 dedup 레이어로 두고 `fs_nodes`만 사용자별로 분리한다. 다른 유저가
+같은 파일을 올려도 S3에는 하나만 존재하지만 접근 권한은 완전히 갈린다.
 
-| Method | Endpoint | Explanation |
-|--------|----------|------|
-| `POST` | `/files/upload` | 파일 업로드 (해시 체크 후 dedup 또는 신규 저장) |
-| `GET` | `/nodes` | 루트 또는 특정 폴더의 자식 노드 목록 |
-| `GET` | `/nodes/<id>/download` | S3에서 파일 다운로드 |
-| `DELETE` | `/nodes/<id>` | 노드 삭제 (ref_count 감소, GC 트리거) |
-| `POST` | `/folders` | 새 폴더 생성 |
-| `GET` | `/health` | 헬스 체크 |
+## 4. API
 
----
+인증이 필요한 엔드포인트는 `Authorization: Bearer <id_token>`을 받는다.
+
+| Method | Endpoint | 인증 | 설명 |
+|--------|----------|------|------|
+| `GET` | `/health` | — | 헬스 체크 |
+| `GET` | `/auth/me` | 필요 | 내 프로필·쿼터 |
+| `DELETE` | `/auth/me` | 필요 | 계정 하드 삭제 |
+| `POST` | `/files/upload` | 필요 | 업로드 (해시 일치 시 dedup) |
+| `GET` | `/nodes` | 필요 | 특정 폴더의 자식 목록 |
+| `GET` | `/nodes/tree` | 필요 | 전체 트리 한 번에 (그래프 뷰용) |
+| `GET` | `/nodes/<id>/download` | 필요 | 다운로드 |
+| `PATCH` | `/nodes/<id>/visibility` | 필요 | 공개 범위 변경 (shared 이탈 시 grant 일괄 취소) |
+| `DELETE` | `/nodes/<id>` | 필요 | 삭제 (ref_count 감소, GC 트리거) |
+| `POST` | `/folders` | 필요 | 폴더 생성 |
+| `POST` | `/folders/ensure-path` | 필요 | 경로 배열 → 폴더 생성 (멱등) |
+| `GET` | `/search?q=` | — | 공개 파일 검색 |
+| `GET` | `/public/nodes/<id>/download` | — | 공개 파일 다운로드 |
+| `POST` | `/shares` | 필요 | 보호 공유 생성 (PDF/IMG, `visibility=shared` 필수) |
+| `GET` | `/shares` | 필요 | 내 공유 목록 |
+| `DELETE` | `/shares/<grant_id>` | 필요 | 공유 취소 |
+| `GET` | `/shares/<grant_id>/audit` | 필요 | 열람·인쇄 이력 |
+| `GET` | `/access/policy?token=` | 조건부 | 정책 + CEK (열람 1회 차감) |
+| `GET` | `/access/content?token=` | 조건부 | `.epf` 스트리밍 |
+| `POST` | `/access/print` | 조건부 | 인쇄 1회 차감 |
+| `GET` | `/access/download?token=` | 조건부 | 원본 (`allow_download` 시) |
+
+`/access/*`의 자격 증명은 256비트 `share_token`이다. 수신자 이메일을 지정하지 않은
+공유는 링크만으로 열리고, 지정한 공유는 그 이메일로 로그인해야 열린다.
 
 ## 5. Local Development
 
-로컬에서는 MinIO(S3 호환)를 사용하여 AWS 비용 없이 동일한 환경 구축 가능.
+로컬은 MinIO로 S3를 대신한다.
 
 ```bash
-# 컨테이너 시작 (postgres + minio + flask-app)
-./scripts/dev-up.sh
-
-# 가상 데이터 시딩 (10만 건 이상 트리 테스트용)
-python scripts/seed_fake_nodes.py
-
-# 트리 탐색 성능 벤치마크
-python scripts/benchmark_tree.py
-
-# 컨테이너 종료
+./scripts/dev-up.sh                       # postgres + minio + flask
+npm --prefix frontend run dev             # 5173
+cd backend && python -m pytest            # 정책 판정 테스트
 ./scripts/dev-down.sh
 ```
 
-**테스트 시나리오:**
-- **중복 업로드**: 동일 파일을 다른 경로에 업로드 → S3 추가 저장 없이 DB 노드만 증가하는지 확인
-- **대용량 조회**: 10만 건 이상 가상 데이터로 B-Tree 인덱스 탐색 속도 측정
-- **파일 삭제**: ref_count 방식으로 논리 경로만 삭제, ref_count=0 시 S3 물리 삭제 확인
+**확인해볼 것**
+- 중복 업로드: 같은 파일을 다른 경로에 올려 S3 저장 없이 노드만 느는지
+- 파일 삭제: `ref_count`가 0이 될 때만 S3 오브젝트가 지워지는지
+- 공유 링크: 수신자를 지정한 링크가 다른 계정에서 거부되는지
 
----
+## 6. Deployment
 
-## 6. AWS Production Deployment
+AWS EC2 단일 인스턴스 + RDS + S3 + Cognito. IAM Role로 S3에 접근하므로 액세스 키를
+두지 않는다. 절차·마이그레이션·인증서 갱신·위협 모델은 [docs/DEPLOY.md](docs/DEPLOY.md).
 
-### Step 1: S3 & IAM 설정
-- S3 버킷 생성 + 퍼블릭 액세스 차단
-- EC2가 S3에 접근할 수 있도록 IAM Role 생성 후 인스턴스에 연결 (액세스 키 불필요)
+## 7. Roadmap
 
-### Step 2: EC2 서버 구성
-- Docker + Docker Compose 설치
-- PostgreSQL 데이터 볼륨을 호스트 디렉토리에 마운트 (컨테이너 재시작 후에도 데이터 유지)
+### Phase 1 — 배포
+- [x] EC2 + RDS PostgreSQL + S3 프로덕션 배포
+- [x] Nginx HTTPS (Let's Encrypt)
+- [ ] GitHub Actions CI/CD
+- [ ] 모니터링 (인증서 만료 알림 포함)
 
-### Step 3: 환경 변수 관리
-- `.env.example`을 복사하여 `.env` 작성
-- `boto3.client('s3')` 호출 시 IAM Role로 자동 인증 (별도 키 불필요)
-
-### Step 4: 도메인 & 리버스 프록시
-- Nginx 컨테이너로 HTTPS(Let's Encrypt / Certbot) 적용
-- 사용자 요청 → Nginx → Gunicorn(Flask) 포워딩
-
----
-
-## 7. 확장 로드맵 (Roadmap)
-
-MVP 이후 아래 단계로 서비스를 확장할 계획입니다.
-
-### Phase 1 — 배포 (1~2주)
-- [x] AWS EC2 + RDS PostgreSQL or(DOCKER) + S3 프로덕션 배포
-- [x] Nginx HTTPS 설정 (Let's Encrypt)
-- [ ] GitHub Actions CI/CD 파이프라인 구성
-- [ ] 모니터링: CloudWatch 또는 Grafana + Prometheus
-
-### Phase 2 — 사용자 공간 분리 & OAuth (2~3주)
-- [x] Google / GitHub OAuth 2.0 로그인 (Authlib)
-- [x] JWT 기반 세션 관리
-- [x] `fs_nodes`에 `owner_id` 컬럼 추가, 모든 쿼리에 user scope 적용
-- [x] 사용자별 스토리지 쿼터 관리
-- [ ] 관리자 대시보드 (유저 목록, 스토리지 사용량)
-
-> **설계 주의점**: `file_blobs`는 전역 dedup 레이어로 유지하되, `fs_nodes`는 사용자별로 완전히 분리. 동일 파일을 다른 유저가 올려도 S3에는 하나만 존재하면서 접근 권한은 분리됨.
+### Phase 2 — 사용자 분리 & 인증
+- [x] Cognito 로그인 (Google / ID·PW), JWT 세션
+- [x] `owner_id` 스코프, 사용자별 쿼터
+- [ ] 관리자 대시보드
+- [ ] `/settings` 페이지
 
 ### Phase 2.5 — 업로드 편의성 & 공개 범위
-- [x] 다중 파일 / 폴더 업로드 (`webkitdirectory`, 동시 업로드 4개)
-- [x] `fs_nodes.visibility` (`private` / `public` / `shared`) — 업로드 시 선택, 목록에서 변경
-- [x] 공개 파일 검색 `GET /search` + `/search` 페이지 (비로그인 접근 가능)
+- [x] 다중 파일 / 폴더 업로드 (동시 4개)
+- [x] `visibility` (`private` / `public` / `shared`)
+- [x] 공개 파일 검색 (비로그인 접근 가능)
 
-> **동시성 주의점**: 폴더 업로드에서 폴더 생성을 업로드 워커와 병렬로 돌리면,
-> 경로 prefix를 공유하는 요청끼리 같은 폴더를 동시에 INSERT 하다 유니크 제약에 걸린다.
-> 그래서 폴더 생성은 업로드 시작 전 **순차 prepass**로 분리했다.
+> 폴더 업로드에서 폴더 생성을 업로드 워커와 병렬로 돌리면 경로 prefix를 공유하는
+> 요청끼리 같은 폴더를 동시에 INSERT 하다 유니크 제약에 걸린다. 그래서 폴더 생성은
+> 업로드 전 순차 prepass로 분리했다.
 
-### Phase 3 — `.epf` 제한 공유 + 보호 뷰어 (4~6주, **Phase 2 선행 필수**)
-경량 DRM 시스템. 
+### Phase 3 — `.epf` 보호 공유
+적용 범위는 사용자가 명시적으로 선택한 **PDF / 이미지**뿐이다. 다른 포맷은 일반 파일로
+다루고, 외부 변환 API는 쓰지 않는다.
 
-**적용 범위**: 사용자가 명시적으로 보호 공유를 선택한 **PDF / IMG 파일에 한해서만** `.epf` 래핑.
-다른 포맷(DOCX/HWP/XLSX 등)은 일반 파일로만 다룸. 외부 변환 API(iLoveAPI 등) 도입하지 않음.
-
-**필요 시 자체 처리**: Pillow(이미지), pypdf(PDF 메타/페이지 조작) 라이브러리로 대응. 워터마크 burn-in 등은 self-hosted 처리.
-
-**`.epf` 포맷** — PDF 또는 IMG 바이트를 내부 페이로드로 래핑
 ```
-[Magic "EPF1"][HdrLen][JSON Header: alg, iv, key_id, policy_url, meta { original_ext: "pdf"|"jpg"|... }][GCM Tag][AES-256-GCM Payload]
+[Magic "EPF1"][HdrLen][JSON Header: alg, iv, key_id, policy_url, meta][GCM Tag][AES-256-GCM Payload]
 ```
 
-- [x] `.epf` 인코더/디코더 (서버측 Python, 클라이언트측 TypeScript)
-- [x] DB 스키마 추가:
-  - `access_grants` (node_id, share_token, grantee_email, expires_at, max_views/prints, view/print_count, allow_download, revoked_at)
-  - `content_keys` (key_id, grant_id, wrapped_cek — 마스터키로 AES-256-GCM wrap)
-  - `audit_logs` (grant_id, action, actor_label, ip_address, user_agent)
-- [x] 정책 검증 API: `GET /api/access/policy?token=...` → 만료/카운트/취소 확인 → CEK 응답
-- [x] 카운트 갱신 API: `POST /api/access/print` → 서버측 증가 (열람은 policy 호출 시 차감)
-- [x] **웹 전용 보호 뷰어** (PDF.js 기반)
-  - Canvas-only 렌더링 (텍스트 레이어 제거)
-  - **Getty Images 스타일 가시적 워터마크** — 수신자 이메일/열람 시각을 페이지 전체에 대각선 오버레이
-  - 우클릭/복사 차단 시도 (deterrent)
-  - 만료/카운트 초과 시 즉시 차단
-- [x] 공유 UI: "보호 공유" 모달 — 수신자, 만료, 열람/인쇄 횟수, 다운로드 허용 옵션
-- [ ] `EPF_MASTER_KEY`를 AWS KMS로 이관 (현재는 env var)
+- [x] `.epf` 인코더/디코더 (Python / TypeScript)
+- [x] `access_grants` · `content_keys` · `audit_logs`
+- [x] 정책 검증 + CEK 발급, 인쇄 카운트 API
+- [x] 보호 뷰어 — Canvas 렌더, 워터마크 오버레이, 만료·한도 즉시 차단
+- [x] 수신자 이메일 지정 시 Cognito 이메일 일치 요구
+- [ ] `EPF_MASTER_KEY`를 AWS KMS로 이관
 
-> **결정 사항**:
-> - 뷰어는 **웹 전용**. 네이티브는 보류.
-> - 위협 모델: 화면 캡처/사진 촬영은 차단 불가능을 명시적으로 수용. **워터마크 기반 책임 추적**으로 대체.
-> - **접근 주체는 링크 토큰**. 수신자가 castor 계정 없이도 열람할 수 있어야 하므로
->   `grantee_user_id` FK 대신 추측 불가능한 256비트 `share_token`을 자격 증명으로 쓴다.
->   `grantee_email`은 워터마크 표시용이며 인증 수단이 아니다.
-> - **`.epf`는 저장하지 않는다**. S3에는 평문 원본만 두고 요청 시점에 감싸서 스트리밍하므로,
->   유출될 수 있는 영구 암호문 사본이 생기지 않는다.
-> - 배포 절차와 상세 위협 모델은 [docs/DEPLOY.md](docs/DEPLOY.md) 참고.
+> 접근 주체는 **링크 토큰**이다. 수신자가 castor 계정 없이도 열람할 수 있어야 해서
+> `grantee_user_id` FK 대신 256비트 `share_token`을 자격 증명으로 쓴다. 이메일을
+> 지정하면 그때만 신원 확인이 추가된다.
+>
+> **`.epf`는 저장하지 않는다.** S3에는 평문 원본만 두고 요청 시점에 감싸므로 유출될
+> 수 있는 영구 암호문 사본이 생기지 않는다.
 
-### Phase 4 — 온라인 뷰 & 공동 작업 (4~8주)
-- [ ] 온라인 미리보기: PDF.js, 이미지, 텍스트, 코드 하이라이팅
+### Phase 4 — 온라인 뷰 & 공동 작업
+- [ ] 일반 미리보기 (PDF, 이미지, 텍스트, 코드)
 - [ ] 텍스트/마크다운 인라인 편집
-- [ ] 실시간 공동 편집: Yjs (CRDT) + WebSocket (별도 collaboration 서버 필요)
-- [ ] 문서별 히스토리 및 버전 관리 (S3 Versioning 활용)
+- [ ] 실시간 공동 편집 (Yjs + WebSocket)
+- [ ] 버전 히스토리 (S3 Versioning)
 
-### Phase 5 — 하위 도메인 & 멀티테넌시 (1주)
-- [ ] Nginx wildcard 인증서 (`*.yourdomain.com`)
-- [ ] 사용자별 또는 팀별 하위 도메인 (`alice.yourdomain.com`)
-- [ ] Cloudflare DNS API를 통한 서브도메인 자동 프로비저닝
-- [ ] 테넌트 격리 미들웨어 (요청 헤더/도메인 기반 user scope 주입)
+### Phase 5 — 하위 도메인 & 멀티테넌시
+- [ ] Nginx wildcard 인증서
+- [ ] 사용자/팀별 하위 도메인 + 자동 프로비저닝
+- [ ] 테넌트 격리 미들웨어
 
----
+### 검토했으나 보류
+- **rename/move API** — 현재 이름 변경 수단이 없다. 삭제 후 재업로드는 `node_id`가
+  바뀌어 그 파일의 공유 grant가 CASCADE로 사라지므로 `PATCH /nodes/<id>`가 필요하다.
+- **2단계 업로드** — 지금은 dedup이 확실한 경우에도 본문을 전송한다. 해시를 먼저
+  조회하고 miss일 때만 올리면 전송량을 아낄 수 있다.
+- **Obsidian 플러그인** — 로컬 편집 후 commit으로 업로드. 위 두 가지가 선행돼야 한다.
 
 ## 8. 프로젝트 구조
 
@@ -199,37 +194,29 @@ MVP 이후 아래 단계로 서비스를 확장할 계획입니다.
 hash_storage/
 ├── backend/
 │   ├── app/
-│   │   ├── models/        # file_blob, fs_node ORM 모델
-│   │   ├── routes/        # upload, folders, nodes, health
-│   │   ├── services/      # hash, node, refcount 비즈니스 로직
-│   │   ├── repositories/  # DB 접근 레이어
-│   │   ├── config.py
-│   │   ├── db.py
-│   │   ├── storage.py     # S3 클라이언트
-│   │   └── blob_deletion.py
-│   ├── migrations/
-│   ├── tests/
+│   │   ├── auth/          # Cognito 검증, require_auth
+│   │   ├── routes/        # upload, nodes, folders, search, shares, access, auth, admin
+│   │   ├── services/      # node, share, epf, user
+│   │   └── config.py · db.py · storage.py · blob_deletion.py
+│   ├── tests/             # 공유 정책 판정 (DB 없이 실행)
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── components/    # 탐색기 UI, 파일 매니저
-│   │   ├── hooks/         # useFileManager, useUpload
-│   │   ├── services/      # Axios API 클라이언트
-│   │   ├── types/         # TypeScript 인터페이스
-│   │   └── utils/         # 해시 계산, 에러 핸들링
+│   │   ├── auth/          # Cognito SDK, OAuth, 토큰 저장
+│   │   ├── components/    # file-manager, graph, landing, viewer
+│   │   ├── epf/           # .epf 디코더
+│   │   ├── hooks/ · services/ · types/ · utils/
+│   │   └── pages/
+│   ├── nginx.conf         # .mjs MIME (PDF.js worker)
 │   ├── Dockerfile
 │   └── package.json
 ├── infra/
-│   ├── postgres/init/     # SQL 초기화 스크립트
+│   ├── postgres/init/     # 001~007 스키마
 │   ├── minio/
 │   └── nginx/
-├── scripts/
-│   ├── dev-up.sh
-│   ├── dev-down.sh
-│   ├── seed_fake_nodes.py
-│   └── benchmark_tree.py
-├── docker-compose.yml
-├── docker-compose.prod.yml
+├── scripts/               # dev-up.sh · dev-down.sh
+├── docs/DEPLOY.md
+├── docker-compose.yml · docker-compose.prod.yml
 └── .env.example
 ```

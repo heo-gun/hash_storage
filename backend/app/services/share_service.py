@@ -26,7 +26,7 @@ def new_share_token() -> str:
 
 
 def normalize_email(value: str | None) -> str | None:
-    """비교와 저장에 쓸 정규형. 대소문자만 맞춘다(도메인 alias 는 건드리지 않음)."""
+    """대소문자만 맞춘다. 도메인 alias(dots, +tag)는 건드리지 않는다."""
     email = (value or "").strip().lower()
     return email or None
 
@@ -41,11 +41,7 @@ def mask_email(email: str | None) -> str | None:
 
 
 def assert_recipient(grant: dict, user: dict | None) -> None:
-    """수신자 지정 공유라면 로그인 사용자의 이메일이 일치해야 한다.
-
-    grantee_email 이 NULL 이면 링크를 아는 누구나 열람 가능(기존 동작).
-    지정돼 있으면 링크 토큰만으로는 부족하고 신원 확인까지 요구한다.
-    """
+    """grantee_email 이 NULL 이면 링크를 아는 누구나, 지정돼 있으면 신원 확인까지 요구한다."""
     expected = normalize_email(grant.get("grantee_email"))
     if expected is None:
         return
@@ -90,10 +86,7 @@ def write_audit(cur, grant_id, action: str, actor_label: str | None = None) -> N
 
 
 def load_grant_for_update(cur, token: str) -> dict:
-    """토큰으로 grant 를 잠근 채 읽어온다. 파일 메타데이터까지 join.
-
-    호출자는 반드시 트랜잭션 안에서 쓰고, 끝나면 commit/rollback 해야 한다.
-    """
+    """호출자는 반드시 트랜잭션 안에서 쓰고, 끝나면 commit/rollback 해야 한다."""
     cur.execute(
         """
         SELECT g.*, n.name, n.node_type, b.mime_type, b.size_bytes, b.s3_key
@@ -130,7 +123,7 @@ def assert_viewable(grant: dict) -> None:
 
 
 def consume_view(cur, grant: dict) -> int:
-    """열람 1회를 소비하고 남은 횟수를 반환. 무제한이면 -1."""
+    """남은 횟수를 반환한다. 무제한이면 -1."""
     assert_viewable(grant)
     cur.execute(
         "UPDATE access_grants SET view_count = view_count + 1 WHERE grant_id = %s "

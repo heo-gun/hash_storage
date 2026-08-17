@@ -35,7 +35,6 @@ class EpfError(Exception):
 
 
 def is_protectable(mime_type: str | None) -> bool:
-    """PDF / 이미지만 보호 공유를 허용 (README Phase 3 적용 범위)."""
     if not mime_type:
         return False
     mime = mime_type.split(";")[0].strip().lower()
@@ -43,11 +42,7 @@ def is_protectable(mime_type: str | None) -> bool:
 
 
 def _master_key() -> bytes:
-    """EPF_MASTER_KEY (base64, 32바이트) 를 읽는다.
-
-    설정되지 않았으면 공유 기능 자체를 막는다. 개발 편의를 위한 기본키를 두면
-    프로덕션에 그대로 나갈 수 있으므로 일부러 fallback 을 두지 않았다.
-    """
+    """fallback 기본키를 일부러 두지 않았다 — 개발용 키가 프로덕션에 그대로 나갈 수 있다."""
     raw = os.getenv("EPF_MASTER_KEY", "")
     if not raw:
         raise EpfError("EPF_MASTER_KEY 가 설정되지 않았습니다")
@@ -65,7 +60,7 @@ def generate_cek() -> bytes:
 
 
 def wrap_cek(cek: bytes) -> bytes:
-    """CEK 를 마스터키로 감싼다. 결과는 iv(12) || ciphertext || tag."""
+    """결과 배치는 iv(12) || ciphertext || tag."""
     iv = os.urandom(IV_LEN)
     sealed = AESGCM(_master_key()).encrypt(iv, cek, None)
     return iv + sealed
@@ -84,10 +79,7 @@ def unwrap_cek(wrapped: bytes) -> bytes:
 
 def encode_epf(payload: bytes, cek: bytes, *, key_id: str, policy_url: str,
                meta: dict) -> bytes:
-    """payload 를 CEK 로 암호화해 .epf 바이트열을 만든다.
-
-    헤더는 AAD 로도 쓰여서, 헤더를 조작하면 복호화가 실패한다.
-    """
+    """헤더는 AAD 로도 쓰인다 — 헤더를 조작하면 복호화가 실패한다."""
     if len(cek) != KEY_LEN:
         raise EpfError("CEK 는 32바이트여야 합니다")
 

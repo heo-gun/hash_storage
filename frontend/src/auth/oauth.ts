@@ -27,9 +27,6 @@ async function sha256Base64Url(input: string): Promise<string> {
     .replace(/=+$/, "");
 }
 
-/**
- * Google IdP를 통한 로그인 시작 — Cognito Hosted UI로 리다이렉트.
- */
 export async function startGoogleLogin(): Promise<void> {
   if (!cognitoConfig.domain) {
     throw new Error("VITE_COGNITO_DOMAIN이 설정되지 않았습니다");
@@ -56,9 +53,7 @@ export async function startGoogleLogin(): Promise<void> {
   window.location.href = `https://${cognitoConfig.domain}/oauth2/authorize?${params}`;
 }
 
-/**
- * /auth/callback 페이지에서 호출. authorization code를 토큰으로 교환.
- */
+/** /auth/callback 페이지에서 호출한다. */
 export async function exchangeCodeForTokens(
   code: string,
   receivedState: string
@@ -109,9 +104,6 @@ export async function exchangeCodeForTokens(
   };
 }
 
-/**
- * Hosted UI 로그인한 사용자의 refresh token으로 새 ID/Access token 발급.
- */
 export async function refreshTokensViaOAuth(
   refreshToken: string
 ): Promise<StoredTokens> {
@@ -143,9 +135,6 @@ export async function refreshTokensViaOAuth(
   };
 }
 
-/**
- * Cognito Hosted UI 로그아웃 (전역 세션 종료).
- */
 export function hostedUiLogoutUrl(): string {
   const params = new URLSearchParams({
     client_id: cognitoConfig.clientId,

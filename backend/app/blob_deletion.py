@@ -10,11 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def collect_subtree_files(cur, node_id, owner_id):
-    """node_id 하위 트리(같은 owner의 파일만)에서 (hash_id, size_bytes) 행 목록 반환.
-
-    중복 파일도 각각 행으로 반환하므로 quota 계산용 합계 + ref_count 감산용
-    Counter 모두에 사용 가능.
-    """
+    """중복 파일도 각각 행으로 반환한다 — quota 합계와 ref_count 감산 양쪽에 쓰기 위해."""
     cur.execute(
         """
         WITH RECURSIVE subtree AS (
@@ -38,7 +34,6 @@ def collect_subtree_files(cur, node_id, owner_id):
 
 
 def apply_blob_deref_and_cleanup_s3(cur, counts: Counter):
-    """ref_count 감소 후 0이 된 blob은 S3 오브젝트와 DB 레코드를 함께 삭제."""
     removed = []
     s3 = None
 

@@ -1,7 +1,5 @@
 /**
- * amazon-cognito-identity-js 래퍼.
- * - 이메일/비밀번호 sign up, confirm, sign in, refresh
- * - Hosted UI 경유 Google OAuth는 oauth.ts 에서 처리
+ * 이메일/비밀번호 흐름만 다룬다. Hosted UI 경유 Google OAuth는 oauth.ts.
  */
 import {
   AuthenticationDetails,
