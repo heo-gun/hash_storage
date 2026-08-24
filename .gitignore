@@ -55,3 +55,6 @@ minio_data/
 
 # Misc
 coverage/
+# 에이전트 스킬 설치물
+.agents/
+skills-lock.json
