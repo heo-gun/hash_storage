@@ -137,7 +137,7 @@ export function NodeListTable({
                         <button
                           type="button"
                           onClick={() => onChangeVisibility(node, next)}
-                          title={`${meta.hint} 클릭하면 ${VISIBILITY_META[next].label} 로 바꿉니다.`}
+                          title={`${meta.hint} Click to switch to ${VISIBILITY_META[next].label}.`}
                           className={clsx(
                             "inline-flex items-center gap-1.5 rounded-xs px-2 py-0.5 font-mono text-[11px] transition-colors duration-200",
                             node.visibility === "public"

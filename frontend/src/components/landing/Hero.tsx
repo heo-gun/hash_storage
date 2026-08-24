@@ -1,92 +1,53 @@
+/* Hallmark · macrostructure: map-diagram · pre-emit critique: P5 H5 E4 S5 R4 V5 */
 import { motion } from "framer-motion";
-import { ArrowRight, Play } from "lucide-react";
 import { Link } from "react-router-dom";
+
 import { HashDedupAnimation } from "./HashDedupAnimation";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
 export function Hero() {
   return (
-    <section className="relative pt-40 pb-section overflow-hidden">
-      {/* Hash watermark background */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none select-none opacity-[0.035] font-mono text-[140px] leading-none text-ink whitespace-nowrap overflow-hidden"
-      >
-        <div className="-rotate-[8deg] translate-y-12">
-          7a3f8b2e1d9c4f5a6b8c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a
-        </div>
-        <div className="-rotate-[8deg] mt-8 -translate-x-20">
-          b2f04ca1e8d77361029384756afcde012345678901234567890abcdef1234567
-        </div>
-      </div>
-
-      <div className="relative mx-auto max-w-6xl px-6 text-center">
-        {/* Eyebrow */}
+    <section className="border-b border-hairline pt-32 pb-20">
+      <div className="mx-auto grid max-w-6xl gap-12 px-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,9fr)] lg:items-end">
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease }}
-          className="inline-flex items-center gap-2 mb-6"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-          <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase text-ink-subtle">
-            Content-Addressed Storage
-          </span>
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-subtle">
+            Two paths · one object
+          </p>
+          <h1 className="mt-5 text-5xl font-semibold leading-[1.02] tracking-tightest-4 text-ink sm:text-6xl">
+            Files are addressed
+            <br />
+            by what they contain.
+          </h1>
+          <p className="mt-6 max-w-md text-lg leading-relaxed tracking-tightest-3 text-ink-muted">
+            castor hashes a file in your browser before upload. Matching bytes
+            are linked, never stored twice.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <Link
+              to="/signup"
+              className="inline-flex h-11 items-center rounded-full border border-accent px-6 text-sm font-medium text-accent transition-colors duration-200 ease-out-soft hover:bg-accent hover:text-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              Start storing
+            </Link>
+            <a
+              href="#map"
+              className="text-sm font-medium text-ink-muted underline decoration-hairline-2 underline-offset-4 transition-colors duration-200 ease-out-soft hover:text-ink"
+            >
+              See the map
+            </a>
+          </div>
         </motion.div>
 
-        {/* Headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease, delay: 0.08 }}
-          className="text-5xl sm:text-6xl lg:text-7xl font-semibold text-ink leading-[1.02] tracking-tightest-4"
-        >
-          Identified by hash. <br className="hidden sm:block" />
-          <span className="text-ink-muted">Stored exactly once.</span>
-        </motion.h1>
-
-        {/* Subhead */}
-        <motion.p
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease, delay: 0.16 }}
-          className="mt-6 max-w-2xl mx-auto text-lg text-ink-muted leading-relaxed tracking-tightest-3"
-        >
-          castor computes SHA-256 in your browser before upload.
-          Duplicate content is linked, not re-stored. Share with expiry,
-          view limits, and tamper-evident watermarks.
-        </motion.p>
-
-        {/* CTAs */}
         <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease, delay: 0.24 }}
-          className="mt-9 flex items-center justify-center gap-3"
-        >
-          <Link
-            to="/signup"
-            className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-canvas font-medium text-sm h-11 px-6 rounded-full transition-colors duration-200 ease-out-soft"
-          >
-            Start for free
-            <ArrowRight className="h-4 w-4 transition-transform duration-200 ease-out-soft group-hover:translate-x-0.5" />
-          </Link>
-          <a
-            href="#how-it-works"
-            className="inline-flex items-center gap-2 bg-surface-2 hover:bg-surface-3 text-ink border border-hairline-2 font-medium text-sm h-11 px-6 rounded-full transition-colors duration-200 ease-out-soft"
-          >
-            <Play className="h-3.5 w-3.5" />
-            See how it works
-          </a>
-        </motion.div>
-
-        {/* Hero animation */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease, delay: 0.36 }}
-          className="mt-20"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.7, ease, delay: 0.15 }}
         >
           <HashDedupAnimation />
         </motion.div>

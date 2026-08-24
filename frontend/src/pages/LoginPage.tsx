@@ -23,7 +23,7 @@ export function LoginPage() {
       await signInWithPassword(email.trim(), password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "로그인에 실패했습니다";
+      const msg = err instanceof Error ? err.message : "Sign-in failed";
       setError(msg);
     } finally {
       setLoading(false);
@@ -35,7 +35,7 @@ export function LoginPage() {
     try {
       await signInWithGoogle();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google 로그인 실패");
+      setError(err instanceof Error ? err.message : "Google sign-in failed");
     }
   }
 

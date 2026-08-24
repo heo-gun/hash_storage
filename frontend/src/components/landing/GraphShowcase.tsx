@@ -28,10 +28,7 @@ function row(
   };
 }
 
-/**
- * 실제 저장소 대신 보여주기용 트리. 요점은 하나다 —
- * spec.pdf 는 세 폴더에 있지만 hash 가 같아서 노드는 **하나**다.
- */
+/** spec.pdf sits in three folders and stays one node — that is the whole point. */
 function demoRows(): TreeNode[] {
   seq = 0;
   const projects = row("projects", "folder", null);
@@ -49,14 +46,11 @@ function demoRows(): TreeNode[] {
     archive,
     team,
     design,
-    // 같은 내용이 세 경로에 — 저장은 한 벌
     row("spec.pdf", "file", portfolio.node_id, SPEC, 2_400_000),
     row("spec.pdf", "file", archive.node_id, SPEC, 2_400_000),
     row("spec-final.pdf", "file", design.node_id, SPEC, 2_400_000),
-    // 두 경로에
     row("logo.png", "file", portfolio.node_id, LOGO, 180_000),
     row("logo.png", "file", design.node_id, LOGO, 180_000),
-    // 나머지는 유일한 파일
     row("notes.md", "file", portfolio.node_id, "1111aaaa2222bbbb", 4_100),
     row("budget.xlsx", "file", team.node_id, "3333cccc4444dddd", 52_000),
     row("old-deck.pdf", "file", archive.node_id, "5555eeee6666ffff", 1_200_000),
@@ -64,44 +58,52 @@ function demoRows(): TreeNode[] {
   ];
 }
 
+const NOTES = [
+  ["Folders", "Paths only. They hold no bytes."],
+  ["Files", "A reference to one hashed object."],
+  ["Shared", "Same hash, many parents. Stored once."],
+];
+
 export function GraphShowcase() {
   const graph = useMemo(() => buildGraph(demoRows(), "castor"), []);
 
   return (
-    <section id="graph" className="py-section">
+    <section id="map" className="border-b border-hairline py-section">
       <div className="mx-auto max-w-6xl px-6">
         <motion.div
-          initial={{ opacity: 0, y: 18 }}
+          initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.6, ease }}
-          className="max-w-2xl"
+          transition={{ duration: 0.5, ease }}
+          className="max-w-xl"
         >
-          <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase text-ink-subtle">
-            Graph view
-          </span>
-          <h2 className="mt-4 text-3xl sm:text-4xl font-semibold text-ink tracking-tightest-4">
-            같은 파일은 한 번만 저장됩니다.
-            <br />
-            <span className="text-ink-muted">그래서 노드도 하나입니다.</span>
-          </h2>
-          <p className="mt-5 text-lg text-ink-muted leading-relaxed tracking-tightest-3">
-            폴더 트리는 경로를 보여줄 뿐입니다. castor 는 내용의 SHA-256 으로
-            파일을 식별하기 때문에, 세 폴더에 놓인 같은 문서는 세 개의 사본이
-            아니라 <strong className="text-ink">세 개의 부모를 가진 하나의
-            노드</strong>가 됩니다. 아래 그래프에서 주황색 노드가 그것입니다.
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-subtle">
+            The map
           </p>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tightest-4 text-ink sm:text-4xl">
+            Three folders hold the same document.
+            <span className="block text-ink-muted">One object holds it.</span>
+          </h2>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.7, ease, delay: 0.1 }}
-          className="mt-10 rounded-2xl border border-hairline bg-surface-1 p-5"
-        >
-          <LazyForceGraph graph={graph} height={440} />
-        </motion.div>
+        <div className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]">
+          <ul className="flex flex-col gap-6 lg:pt-4">
+            {NOTES.map(([term, note]) => (
+              <li key={term}>
+                <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-accent">
+                  {term}
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
+                  {note}
+                </p>
+              </li>
+            ))}
+          </ul>
+
+          <div className="rounded-xl border border-hairline bg-surface-1 p-4">
+            <LazyForceGraph graph={graph} height={420} />
+          </div>
+        </div>
       </div>
     </section>
   );

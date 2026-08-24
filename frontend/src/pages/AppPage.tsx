@@ -27,20 +27,10 @@ export function AppPage() {
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
-      {/* Subtle hash watermark, like landing */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 select-none overflow-hidden opacity-[0.025] font-mono text-[140px] leading-none text-ink whitespace-nowrap"
-      >
-        <div className="-rotate-[8deg] translate-y-32 translate-x-12">
-          7a3f8b2e1d9c4f5a6b8c0d1e2f3a4b5c6d7e8f9a
-        </div>
-      </div>
+      <AppHeader />
 
-      <div className="relative mx-auto max-w-6xl px-6 py-12">
-        <AppHeader />
-
-        <div className="overflow-hidden rounded-2xl border border-hairline bg-surface-1">
+      <div className="mx-auto max-w-6xl px-6 py-10">
+        <div className="overflow-hidden rounded-xl border border-hairline bg-surface-1">
           <LocationSection
             breadcrumbs={fm.breadcrumbs}
             currentPath={fm.currentPath}
@@ -69,7 +59,7 @@ export function AppPage() {
 
           <div
             role="tablist"
-            aria-label="보기 전환"
+            aria-label="Switch view"
             className="flex gap-1 border-b border-hairline px-6 pt-5"
           >
             <ViewTab

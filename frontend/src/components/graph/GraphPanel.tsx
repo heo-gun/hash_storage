@@ -27,7 +27,7 @@ export function GraphPanel({ onOpenFolder }: Props) {
       setRows(res.data.nodes);
       setTruncated(res.data.truncated);
     } catch (e) {
-      setError(getApiErrorMessage(e, "트리를 불러오지 못했습니다."));
+      setError(getApiErrorMessage(e, "Could not load the tree."));
     } finally {
       setLoading(false);
     }
@@ -80,10 +80,10 @@ export function GraphPanel({ onOpenFolder }: Props) {
               {graph.dedupCount > 0 && (
                 <span
                   className="rounded-xs border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-amber-300"
-                  title="같은 내용이 여러 경로에 있어 한 벌만 저장된 파일"
+                  title="Same content in several paths, stored once"
                 >
                   deduped {graph.dedupCount} · {formatFileSize(graph.savedBytes)}{" "}
-                  절약
+                  saved
                 </span>
               )}
             </>
@@ -101,7 +101,7 @@ export function GraphPanel({ onOpenFolder }: Props) {
 
       {truncated && (
         <p className="mb-3 rounded-md border border-hairline bg-surface-2 px-3 py-2 text-[11px] text-ink-dim">
-          노드가 너무 많아 일부만 표시합니다. 화면에 보이는 것이 전체가 아닙니다.
+          Too many nodes to draw — showing a subset. This is not your whole tree.
         </p>
       )}
 
@@ -123,11 +123,9 @@ export function GraphPanel({ onOpenFolder }: Props) {
             strokeWidth={1.25}
             aria-hidden
           />
-          <p className="text-sm font-medium text-ink-muted">
-            아직 그릴 것이 없습니다
-          </p>
+          <p className="text-sm font-medium text-ink-muted">Nothing to draw yet</p>
           <p className="mt-1 max-w-sm text-sm text-ink-subtle">
-            파일을 올리면 경로 구조와 중복 참조가 여기에 나타납니다.
+            Upload files and your paths — and their shared content — appear here.
           </p>
         </div>
       )}

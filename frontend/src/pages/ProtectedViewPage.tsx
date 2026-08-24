@@ -84,7 +84,7 @@ export function ProtectedViewPage() {
         if (code === "auth_required" || code === "recipient_mismatch") {
           setDenial({ code, hint: getApiErrorHint(e) });
         }
-        setError(getApiErrorMessage(e, "문서를 열 수 없습니다."));
+        setError(getApiErrorMessage(e, "This document could not be opened."));
       } finally {
         setLoading(false);
       }
@@ -119,11 +119,11 @@ export function ProtectedViewPage() {
       );
       const left = res.data.prints_remaining;
       setPrintNote(
-        left < 0 ? "인쇄를 시작합니다." : `인쇄를 시작합니다. ${left}회 남음.`
+        left < 0 ? "Sending to print." : `Sending to print. ${left} left.`
       );
       window.print();
     } catch (e) {
-      setPrintNote(getApiErrorMessage(e, "인쇄할 수 없습니다."));
+      setPrintNote(getApiErrorMessage(e, "Could not print."));
     }
   }, [token]);
 
@@ -146,7 +146,7 @@ export function ProtectedViewPage() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setPrintNote(getApiErrorMessage(e, "다운로드할 수 없습니다."));
+      setPrintNote(getApiErrorMessage(e, "Could not download."));
     }
   }
 
@@ -155,7 +155,7 @@ export function ProtectedViewPage() {
       <Shell>
         <div className="flex items-center justify-center gap-2 py-24 text-ink-muted">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          <span className="text-sm">문서를 복호화하는 중…</span>
+          <span className="text-sm">Decrypting…</span>
         </div>
       </Shell>
     );
@@ -177,7 +177,7 @@ export function ProtectedViewPage() {
 
           {denial?.hint && (
             <p className="mt-2 font-mono text-[11px] text-ink-subtle">
-              수신자: {denial.hint}
+              Issued to {denial.hint}
             </p>
           )}
 
@@ -187,11 +187,11 @@ export function ProtectedViewPage() {
               state={{ from: `/view/${token}` }}
               className="mt-6 inline-block rounded-md bg-accent px-4 py-2 text-sm font-medium text-canvas transition-colors duration-200 hover:bg-accent-hover"
             >
-              로그인하고 열람하기
+              Sign in to open
             </Link>
           ) : denial?.code === "recipient_mismatch" ? (
             <p className="mt-6 text-sm text-ink-subtle">
-              수신자 계정으로 다시 로그인해 주세요.
+              Sign in with the recipient account.
             </p>
           ) : null}
 
@@ -199,7 +199,7 @@ export function ProtectedViewPage() {
             to="/"
             className="mt-6 block text-sm text-accent transition-colors duration-200 hover:text-accent-hover"
           >
-            castor 홈으로
+            Back to castor
           </Link>
         </div>
       </Shell>
@@ -222,10 +222,10 @@ export function ProtectedViewPage() {
           </div>
           <p className="mt-1 font-mono text-[11px] text-ink-subtle">
             {policy?.views_remaining === -1
-              ? "열람 무제한"
-              : `열람 ${policy?.views_remaining}회 남음`}
+              ? "Unlimited views"
+              : `${policy?.views_remaining} views left`}
             {policy?.expires_at &&
-              ` · ${new Date(policy.expires_at).toLocaleDateString()} 만료`}
+              ` · expires ${new Date(policy.expires_at).toLocaleDateString()}`}
           </p>
         </div>
 
@@ -276,15 +276,14 @@ export function ProtectedViewPage() {
           />
         ) : (
           <p className="py-16 text-center text-sm text-neutral-600">
-            이 형식은 보호 뷰어에서 표시할 수 없습니다.
+            This format cannot be shown in the protected viewer.
           </p>
         )}
         <Watermark label={watermarkLabel} openedAt={openedAt} />
       </div>
 
       <p className="mt-6 text-center font-mono text-[11px] text-ink-dim print:hidden">
-        이 문서는 {watermarkLabel} 에게 발급되었습니다. 무단 배포 시 추적될 수
-        있습니다.
+        Issued to {watermarkLabel}. Redistribution can be traced back here.
       </p>
     </Shell>
   );

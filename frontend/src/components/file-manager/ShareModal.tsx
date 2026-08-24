@@ -59,7 +59,7 @@ export function ShareModal({ node, onClose }: Props) {
     const value = emailDraft.trim().toLowerCase();
     if (!value) return true;
     if (!EMAIL_RE.test(value)) {
-      setEmailError("올바른 이메일 형식이 아닙니다.");
+      setEmailError("Not a valid email address.");
       return false;
     }
     if (emails.includes(value)) {
@@ -113,7 +113,7 @@ export function ShareModal({ node, onClose }: Props) {
       });
       setCreated(res.data);
     } catch (err) {
-      setError(getApiErrorMessage(err, "공유 링크를 만들지 못했습니다."));
+      setError(getApiErrorMessage(err, "Could not create the share link."));
     } finally {
       setLoading(false);
     }
@@ -136,7 +136,7 @@ export function ShareModal({ node, onClose }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`${node.name} 보호 공유`}
+        aria-label={`Share ${node.name}`}
         onClick={(e) => e.stopPropagation()}
         className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-hairline bg-surface-1 p-6"
       >
@@ -145,7 +145,7 @@ export function ShareModal({ node, onClose }: Props) {
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 shrink-0 text-accent" aria-hidden />
               <h2 className="text-lg font-semibold tracking-tightest-3 text-ink">
-                보호 공유
+                Protected share
               </h2>
             </div>
             <p className="mt-1 truncate text-sm text-ink-muted">{node.name}</p>
@@ -170,7 +170,7 @@ export function ShareModal({ node, onClose }: Props) {
               {created.shares.map((share) => (
                 <li key={share.grant_id}>
                   <p className="mb-1 font-mono text-[11px] text-ink-subtle">
-                    {share.grantee_email ?? "링크를 아는 누구나"}
+                    {share.grantee_email ?? "Anyone with the link"}
                   </p>
                   <div className="flex gap-2">
                     <input
@@ -198,25 +198,25 @@ export function ShareModal({ node, onClose }: Props) {
 
             <ul className="mt-4 space-y-1 font-mono text-[11px] text-ink-subtle">
               <li>
-                만료:{" "}
+                Expires:{" "}
                 {created.expires_at
                   ? new Date(created.expires_at).toLocaleString()
-                  : "없음"}
+                  : "Never"}
               </li>
-              <li>열람: {created.max_views ?? "무제한"}</li>
+              <li>Views: {created.max_views ?? "Unlimited"}</li>
               <li>
-                인쇄:{" "}
+                Prints:{" "}
                 {created.max_prints === 0
-                  ? "금지"
-                  : (created.max_prints ?? "무제한")}
+                  ? "Blocked"
+                  : (created.max_prints ?? "Unlimited")}
               </li>
-              <li>원본 다운로드: {created.allow_download ? "허용" : "차단"}</li>
+              <li>Original download: {created.allow_download ? "Allowed" : "Blocked"}</li>
             </ul>
 
             <p className="mt-4 rounded-md border border-hairline bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-ink-dim">
               {created.shares.some((s) => s.grantee_email)
-                ? "수신자를 지정한 링크는 해당 이메일로 castor에 로그인해야 열립니다. 다만 화면 캡처는 막을 수 없으므로 문서에는 수신자 정보가 워터마크로 새겨집니다."
-                : "링크를 가진 사람은 로그인 없이 열람할 수 있습니다. 화면 캡처는 막을 수 없으므로, 문서에는 수신자 정보가 워터마크로 새겨집니다."}
+                ? "A link with a named recipient only opens for that address. Screens can still be photographed, so every page carries the recipient as a watermark."
+                : "Anyone holding this link can open it without signing in. Screens can still be photographed, so every page carries a watermark."}
             </p>
 
             <button
@@ -224,14 +224,14 @@ export function ShareModal({ node, onClose }: Props) {
               onClick={onClose}
               className="mt-5 w-full rounded-md border border-hairline bg-surface-2 px-4 py-2.5 text-sm font-medium text-ink-muted transition-colors duration-200 hover:bg-surface-3 hover:text-ink"
             >
-              닫기
+              Close
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className={labelCls} htmlFor="share-email">
-                수신자 이메일 (선택)
+                Recipient email (optional)
               </label>
 
               {emails.length > 0 && (
@@ -243,7 +243,7 @@ export function ShareModal({ node, onClose }: Props) {
                         <button
                           type="button"
                           onClick={() => removeEmail(e)}
-                          aria-label={`${e} 제거`}
+                          aria-label={`Remove ${e}`}
                           className="rounded-xs p-0.5 transition-colors duration-200 hover:bg-accent/15"
                         >
                           <X className="h-3 w-3" aria-hidden />
@@ -266,7 +266,7 @@ export function ShareModal({ node, onClose }: Props) {
                 }}
                 onKeyDown={handleEmailKeyDown}
                 onBlur={() => commitEmail()}
-                placeholder="이메일 입력 후 Enter · 비우면 링크를 아는 누구나"
+                placeholder="Type an email, press Enter · empty means anyone with the link"
                 className={`mt-2 ${inputCls}`}
               />
 
@@ -275,43 +275,43 @@ export function ShareModal({ node, onClose }: Props) {
               ) : (
                 <p className="mt-1.5 text-[11px] text-ink-dim">
                   {isRestricted
-                    ? "지정한 이메일로 castor에 로그인해야 열람할 수 있습니다. 수신자마다 링크가 따로 발급되어 개별 취소가 가능합니다."
-                    : "비워두면 링크를 가진 누구나 로그인 없이 열람할 수 있습니다."}
+                    ? "Recipients must sign in with that address. Each one gets its own link, so you can revoke them separately."
+                    : "Leave empty and anyone with the link can open it."}
                 </p>
               )}
             </div>
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className={labelCls}>만료(일)</label>
+                <label className={labelCls}>Expires (days)</label>
                 <input
                   type="number"
                   min={1}
                   value={expiresInDays}
                   onChange={(e) => setExpiresInDays(e.target.value)}
-                  placeholder="무제한"
+                  placeholder="Unlimited"
                   className={`mt-2 ${inputCls}`}
                 />
               </div>
               <div>
-                <label className={labelCls}>열람 횟수</label>
+                <label className={labelCls}>View limit</label>
                 <input
                   type="number"
                   min={1}
                   value={maxViews}
                   onChange={(e) => setMaxViews(e.target.value)}
-                  placeholder="무제한"
+                  placeholder="Unlimited"
                   className={`mt-2 ${inputCls}`}
                 />
               </div>
               <div>
-                <label className={labelCls}>인쇄 횟수</label>
+                <label className={labelCls}>Print limit</label>
                 <input
                   type="number"
                   min={0}
                   value={maxPrints}
                   onChange={(e) => setMaxPrints(e.target.value)}
-                  placeholder="무제한"
+                  placeholder="Unlimited"
                   className={`mt-2 ${inputCls}`}
                 />
               </div>
@@ -325,9 +325,9 @@ export function ShareModal({ node, onClose }: Props) {
                 className="mt-0.5 h-3.5 w-3.5 accent-accent"
               />
               <span className="text-sm text-ink-muted">
-                원본 다운로드 허용
+                Allow original download
                 <span className="mt-0.5 block text-[11px] text-ink-dim">
-                  켜면 수신자가 워터마크 없는 원본을 받을 수 있습니다.
+                  Recipients can save the file without the watermark.
                 </span>
               </span>
             </label>
@@ -345,10 +345,10 @@ export function ShareModal({ node, onClose }: Props) {
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
               {loading
-                ? "만드는 중…"
+                ? "Creating…"
                 : emails.length > 1
-                  ? `공유 링크 ${emails.length}개 만들기`
-                  : "공유 링크 만들기"}
+                  ? `Create ${emails.length} links`
+                  : "Create share link"}
             </button>
           </form>
         )}

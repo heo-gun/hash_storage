@@ -1,8 +1,8 @@
 import { Nav } from "../components/landing/Nav";
 import { Hero } from "../components/landing/Hero";
-import { Features } from "../components/landing/Features";
-import { HowItWorks } from "../components/landing/HowItWorks";
 import { GraphShowcase } from "../components/landing/GraphShowcase";
+import { Paths } from "../components/landing/Paths";
+import { Limits } from "../components/landing/Limits";
 import { Footer } from "../components/landing/Footer";
 
 export function LandingPage() {
@@ -11,9 +11,9 @@ export function LandingPage() {
       <Nav />
       <main>
         <Hero />
-        <Features />
-        <HowItWorks />
         <GraphShowcase />
+        <Paths />
+        <Limits />
       </main>
       <Footer />
     </div>

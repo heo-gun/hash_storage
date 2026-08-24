@@ -37,7 +37,7 @@ function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
 export async function importCek(cekBase64: string): Promise<CryptoKey> {
   const raw = base64ToBytes(cekBase64);
   if (raw.length !== 32) {
-    throw new EpfDecodeError("CEK 길이가 올바르지 않습니다");
+    throw new EpfDecodeError("Invalid content key length");
   }
   return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
 }
@@ -49,11 +49,11 @@ export async function decodeEpf(
   const bytes = new Uint8Array(buffer);
 
   if (bytes.length < MAGIC.length + 4) {
-    throw new EpfDecodeError("파일이 너무 짧습니다");
+    throw new EpfDecodeError("File is too short");
   }
   const magic = new TextDecoder().decode(bytes.subarray(0, 4));
   if (magic !== MAGIC) {
-    throw new EpfDecodeError("EPF1 형식이 아닙니다");
+    throw new EpfDecodeError("Not an EPF1 file");
   }
 
   const view = new DataView(buffer);
@@ -62,7 +62,7 @@ export async function decodeEpf(
   const headerEnd = headerStart + hdrLen;
 
   if (headerEnd + TAG_LEN > bytes.length) {
-    throw new EpfDecodeError("헤더 길이가 잘못되었습니다");
+    throw new EpfDecodeError("Bad header length");
   }
 
   const headerBytes = bytes.subarray(headerStart, headerEnd);
@@ -70,7 +70,7 @@ export async function decodeEpf(
   try {
     header = JSON.parse(new TextDecoder().decode(headerBytes));
   } catch {
-    throw new EpfDecodeError("헤더를 읽을 수 없습니다");
+    throw new EpfDecodeError("Header could not be read");
   }
 
   const tag = bytes.subarray(headerEnd, headerEnd + TAG_LEN);
@@ -95,7 +95,7 @@ export async function decodeEpf(
       sealed
     );
   } catch {
-    throw new EpfDecodeError("복호화에 실패했습니다 (변조되었거나 키가 다릅니다)");
+    throw new EpfDecodeError("Decryption failed — the file was altered or the key does not match");
   }
 
   return { header, payload };

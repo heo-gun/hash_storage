@@ -24,7 +24,7 @@ export function LocationSection({
       </div>
       <nav
         className="mt-3 flex flex-wrap items-center gap-1 text-sm"
-        aria-label="폴더 경로"
+        aria-label="Breadcrumb"
       >
         {breadcrumbs.map((item, index) => (
           <span

@@ -2,13 +2,7 @@ import { LogOut, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../../auth/AuthContext";
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`;
-  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
-  return `${(n / 1024 ** 3).toFixed(2)} GB`;
-}
+import { formatFileSize } from "../../utils/format";
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
@@ -18,55 +12,55 @@ export function AppHeader() {
       : 0;
 
   return (
-    <header className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <Link to="/" className="inline-flex items-center gap-3">
-          <span className="text-ink font-semibold tracking-tightest-3 text-2xl">
-            castor
-          </span>
-          <span className="hidden font-mono text-[11px] text-accent bg-surface-2 px-2 py-0.5 rounded-xs border border-hairline sm:inline-block">
-            sha256:7a3f8b…
-          </span>
+    <header className="sticky top-0 z-40 border-b border-hairline bg-canvas/85 backdrop-blur-md">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-6">
+        <Link
+          to="/"
+          className="font-mono text-sm tracking-tightest-3 text-ink transition-colors duration-200 ease-out-soft hover:text-accent"
+        >
+          castor
         </Link>
-        <p className="mt-3 text-sm text-ink-muted tracking-tightest-3">
-          Content-addressable storage. Browse, upload, share.
-        </p>
-      </div>
 
-      {user && (
-        <div className="flex items-center gap-4 self-end sm:self-auto">
-          <div className="text-right">
-            <p className="text-sm font-medium text-ink">
-              {user.display_name || user.email}
-            </p>
-            <div className="mt-1.5 flex items-center justify-end gap-2">
-              <div className="h-1.5 w-32 overflow-hidden rounded-full bg-surface-2">
+        {user && (
+          <div className="flex items-center gap-4">
+            <div className="hidden items-center gap-2.5 sm:flex">
+              <span className="font-mono text-[11px] text-ink-subtle">
+                {formatFileSize(user.used_bytes)} / {formatFileSize(user.quota_bytes)}
+              </span>
+              <div
+                className="h-1 w-24 overflow-hidden rounded-full bg-surface-3"
+                role="img"
+                aria-label={`Storage used: ${pct.toFixed(0)} percent`}
+              >
                 <div
-                  className="h-full bg-accent transition-all"
+                  className="h-full bg-accent transition-[width] duration-300 ease-out-soft"
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              <span className="font-mono text-[11px] text-ink-subtle">
-                {formatBytes(user.used_bytes)} / {formatBytes(user.quota_bytes)}
-              </span>
             </div>
+
+            <span className="hidden font-mono text-[11px] text-ink-dim md:inline">
+              {user.email}
+            </span>
+
+            <Link
+              to="/search"
+              aria-label="Browse public files"
+              className="text-ink-subtle transition-colors duration-200 ease-out-soft hover:text-ink"
+            >
+              <Search className="h-4 w-4" />
+            </Link>
+            <button
+              type="button"
+              onClick={signOut}
+              aria-label="Sign out"
+              className="text-ink-subtle transition-colors duration-200 ease-out-soft hover:text-ink"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-          <Link
-            to="/search"
-            title="Browse public files"
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-hairline bg-surface-2 text-ink-muted transition-colors duration-200 hover:bg-surface-3 hover:text-ink"
-          >
-            <Search className="h-4 w-4" />
-          </Link>
-          <button
-            onClick={signOut}
-            title="Sign out"
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-hairline bg-surface-2 text-ink-muted transition-colors duration-200 hover:bg-surface-3 hover:text-ink"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </header>
   );
 }

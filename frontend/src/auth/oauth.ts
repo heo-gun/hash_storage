@@ -29,7 +29,7 @@ async function sha256Base64Url(input: string): Promise<string> {
 
 export async function startGoogleLogin(): Promise<void> {
   if (!cognitoConfig.domain) {
-    throw new Error("VITE_COGNITO_DOMAIN이 설정되지 않았습니다");
+    throw new Error("VITE_COGNITO_DOMAIN is not set");
   }
 
   const verifier = randomString(64);
@@ -65,10 +65,10 @@ export async function exchangeCodeForTokens(
   sessionStorage.removeItem(PKCE_KEY);
 
   if (!expectedState || expectedState !== receivedState) {
-    throw new Error("OAuth state mismatch (CSRF 의심)");
+    throw new Error("OAuth state mismatch — possible CSRF");
   }
   if (!verifier) {
-    throw new Error("PKCE verifier가 없습니다");
+    throw new Error("Missing PKCE verifier");
   }
 
   const body = new URLSearchParams({
@@ -86,7 +86,7 @@ export async function exchangeCodeForTokens(
   });
 
   if (!res.ok) {
-    throw new Error(`Token exchange 실패: ${res.status} ${await res.text()}`);
+    throw new Error(`Token exchange failed: ${res.status} ${await res.text()}`);
   }
 
   const data = (await res.json()) as {
@@ -119,7 +119,7 @@ export async function refreshTokensViaOAuth(
     body,
   });
 
-  if (!res.ok) throw new Error(`Refresh 실패: ${res.status}`);
+  if (!res.ok) throw new Error(`Token refresh failed: ${res.status}`);
 
   const data = (await res.json()) as {
     id_token: string;

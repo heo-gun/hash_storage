@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     const cur = tokenStorage.get();
-    if (!cur) throw new Error("저장된 토큰 없음");
+    if (!cur) throw new Error("No stored session");
     // Hosted UI 경로 우선 (Google) — Cognito SDK도 같은 endpoint 쓸 수 있음
     const next = await oauth.refreshTokensViaOAuth(cur.refreshToken);
     await setSession(next);
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(me);
         }
       } catch (e) {
-        console.warn("세션 복구 실패:", e);
+        console.warn("Could not restore session:", e);
         tokenStorage.clear();
       } finally {
         setLoading(false);
@@ -139,6 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthState {
   const v = useContext(Ctx);
-  if (!v) throw new Error("useAuth는 AuthProvider 내부에서만 사용 가능");
+  if (!v) throw new Error("useAuth must be used inside AuthProvider");
   return v;
 }

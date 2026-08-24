@@ -42,7 +42,7 @@ export function SearchPage() {
       .catch((e) => {
         if (reqId !== latest.current) return;
         console.error(e);
-        setError("검색에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        setError("Search failed. Try again in a moment.");
       })
       .finally(() => {
         if (reqId === latest.current) setLoading(false);
@@ -92,8 +92,7 @@ export function SearchPage() {
           Public files
         </h1>
         <p className="mt-2 text-sm text-ink-muted">
-          공개(public)로 설정된 파일만 여기에 나타납니다. 로그인 없이 내려받을 수
-          있습니다.
+          Only files set to public appear here. No sign-in needed to download.
         </p>
 
         <form onSubmit={submit} className="mt-6 flex gap-2">
@@ -101,7 +100,7 @@ export function SearchPage() {
             type="search"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="파일 이름으로 검색"
+            placeholder="Search by file name"
             className="flex-1 rounded-md border border-hairline bg-surface-1 px-3 py-2.5 text-sm text-ink placeholder:text-ink-dim transition-colors duration-200 focus:border-accent focus:outline-none"
           />
           <button
@@ -116,7 +115,7 @@ export function SearchPage() {
           {loading ? (
             <div className="flex items-center justify-center gap-2 rounded-md border border-dashed border-hairline bg-surface-2/30 py-16 text-ink-muted">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              <span className="text-sm">검색 중…</span>
+              <span className="text-sm">Searching…</span>
             </div>
           ) : error ? (
             <div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300">
@@ -130,7 +129,7 @@ export function SearchPage() {
                 aria-hidden
               />
               <p className="text-sm font-medium text-ink-muted">
-                {q ? "일치하는 공개 파일이 없습니다" : "공개된 파일이 없습니다"}
+                {q ? "No public files match that" : "No public files yet"}
               </p>
             </div>
           ) : (

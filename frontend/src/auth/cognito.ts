@@ -19,7 +19,7 @@ function userPool(): CognitoUserPool {
   if (!_userPool) {
     if (!cognitoConfig.userPoolId || !cognitoConfig.clientId) {
       throw new Error(
-        "Cognito 환경변수가 설정되지 않았습니다 (VITE_COGNITO_USER_POOL_ID, VITE_COGNITO_CLIENT_ID)"
+        "Cognito is not configured (VITE_COGNITO_USER_POOL_ID, VITE_COGNITO_CLIENT_ID)"
       );
     }
     _userPool = new CognitoUserPool({

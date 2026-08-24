@@ -6,15 +6,15 @@ export const VISIBILITY_META: Record<
   Visibility,
   { label: string; hint: string; Icon: typeof Lock }
 > = {
-  private: { label: "Private", hint: "나만 볼 수 있습니다.", Icon: Lock },
+  private: { label: "Private", hint: "Only you can see this.", Icon: Lock },
   public: {
     label: "Public",
-    hint: "모두에게 공개되고 검색에 노출됩니다.",
+    hint: "Public — listed in search.",
     Icon: Globe,
   },
   shared: {
     label: "Shared",
-    hint: "공유 링크를 받은 사람만 접근합니다. 링크는 이 상태에서만 만들 수 있습니다.",
+    hint: "Only people holding a share link. Links can only be made here.",
     Icon: Users,
   },
 };

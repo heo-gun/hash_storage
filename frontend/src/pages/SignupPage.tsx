@@ -28,7 +28,7 @@ export function SignupPage() {
       await cognito.signUp(email.trim(), password, name.trim());
       setStage("confirm");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "가입에 실패했습니다");
+      setError(err instanceof Error ? err.message : "Sign-up failed");
     } finally {
       setLoading(false);
     }
@@ -43,7 +43,7 @@ export function SignupPage() {
       await signInWithPassword(email.trim(), password);
       navigate("/app", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "인증 코드 확인 실패");
+      setError(err instanceof Error ? err.message : "Could not verify that code");
     } finally {
       setLoading(false);
     }
@@ -56,7 +56,7 @@ export function SignupPage() {
       await cognito.resendConfirmationCode(email.trim());
       setInfo("A new code has been sent.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "재전송 실패");
+      setError(err instanceof Error ? err.message : "Could not resend the code");
     }
   }
 

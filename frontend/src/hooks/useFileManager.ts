@@ -22,7 +22,7 @@ export function useFileManager() {
   const [nodes, setNodes] = useState<FsNode[]>([]);
   const [currentParentId, setCurrentParentId] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
-    { node_id: null, name: "루트" },
+    { node_id: null, name: "Root" },
   ]);
 
   const [folderName, setFolderName] = useState("");
@@ -57,7 +57,7 @@ export function useFileManager() {
     } catch (error) {
       console.error(error);
       setBanner({
-        text: "목록을 불러오지 못했습니다. API 주소와 네트워크를 확인해 주세요.",
+        text: "Could not load this folder. Check the API address and your connection.",
         tone: "error",
       });
     } finally {
@@ -79,12 +79,12 @@ export function useFileManager() {
         parent_id: currentParentId,
       });
       setFolderName("");
-      setBanner({ text: "폴더가 만들어졌습니다.", tone: "success" });
+      setBanner({ text: "Folder created.", tone: "success" });
       await loadNodes(currentParentId);
     } catch (error: unknown) {
       console.error(error);
       setBanner({
-        text: getApiErrorMessage(error, "폴더를 만들 수 없습니다."),
+        text: getApiErrorMessage(error, "Could not create the folder."),
         tone: "error",
       });
     }
@@ -131,7 +131,7 @@ export function useFileManager() {
 
     setUploading(true);
     setBanner({
-      text: `${pending.length}개 파일을 업로드합니다…`,
+      text: `Uploading ${pending.length} file(s)…`,
       tone: "neutral",
     });
 
@@ -158,7 +158,7 @@ export function useFileManager() {
     } catch (error: unknown) {
       console.error(error);
       setBanner({
-        text: getApiErrorMessage(error, "업로드할 폴더를 만들지 못했습니다."),
+        text: getApiErrorMessage(error, "Could not create the destination folder."),
         tone: "error",
       });
       setUploading(false);
@@ -203,7 +203,7 @@ export function useFileManager() {
           console.error(error);
           patchItem(item.id, {
             status: "error",
-            error: getApiErrorMessage(error, "업로드 실패"),
+            error: getApiErrorMessage(error, "Upload failed"),
           });
         }
       }
@@ -214,12 +214,12 @@ export function useFileManager() {
     );
 
     const parts: string[] = [];
-    if (doneCount) parts.push(`${doneCount}개 업로드 완료`);
-    if (dedupedCount) parts.push(`그 중 ${dedupedCount}개는 기존 파일 재사용`);
-    if (errorCount) parts.push(`${errorCount}개 실패`);
+    if (doneCount) parts.push(`${doneCount} uploaded`);
+    if (dedupedCount) parts.push(`${dedupedCount} reused an existing object`);
+    if (errorCount) parts.push(`${errorCount} failed`);
 
     setBanner({
-      text: parts.join(" · ") || "처리할 파일이 없습니다.",
+      text: parts.join(" · ") || "Nothing to upload.",
       tone: errorCount ? "error" : "success",
     });
 
@@ -245,27 +245,27 @@ export function useFileManager() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setBanner({ text: "다운로드를 시작했습니다.", tone: "success" });
+      setBanner({ text: "Download started.", tone: "success" });
     } catch (error) {
       console.error(error);
-      setBanner({ text: "다운로드에 실패했습니다.", tone: "error" });
+      setBanner({ text: "Download failed.", tone: "error" });
     }
   }
 
   async function handleDelete(node: FsNode) {
     const msg =
       node.node_type === "folder"
-        ? `"${node.name}" 폴더와 그 안의 모든 하위 항목이 삭제됩니다. 계속할까요?`
-        : `"${node.name}" 파일을 삭제할까요? 다른 경로에 같은 내용이 있으면 저장소의 바이트는 유지됩니다.`;
+        ? `Delete "${node.name}" and everything inside it?`
+        : `Delete "${node.name}"? If the same content exists elsewhere, the stored bytes stay.`;
     if (!window.confirm(msg)) return;
 
     try {
       await api.delete(`/nodes/${node.node_id}`);
-      setBanner({ text: "항목을 삭제했습니다.", tone: "success" });
+      setBanner({ text: "Deleted.", tone: "success" });
       await loadNodes(currentParentId);
     } catch (error) {
       console.error(error);
-      setBanner({ text: "삭제하지 못했습니다.", tone: "error" });
+      setBanner({ text: "Could not delete.", tone: "error" });
     }
   }
 
@@ -286,14 +286,14 @@ export function useFileManager() {
       const revoked = res.data?.revoked_shares ?? 0;
       if (revoked > 0) {
         setBanner({
-          text: `공개 범위를 바꾸면서 기존 공유 링크 ${revoked}개를 취소했습니다.`,
+          text: `Changing access revoked ${revoked} existing share link(s).`,
           tone: "neutral",
         });
       }
     } catch (error) {
       console.error(error);
       setBanner({
-        text: getApiErrorMessage(error, "공개 범위를 변경하지 못했습니다."),
+        text: getApiErrorMessage(error, "Could not change access."),
         tone: "error",
       });
       await loadNodes(currentParentId);
@@ -310,7 +310,7 @@ export function useFileManager() {
 
   /** 그래프에서 폴더를 골랐을 때처럼, 중간 단계를 거치지 않고 경로로 바로 이동. */
   function jumpToPath(path: BreadcrumbItem[]) {
-    const next = [{ node_id: null, name: "루트" }, ...path];
+    const next = [{ node_id: null, name: "Root" }, ...path];
     setBreadcrumbs(next);
     setCurrentParentId(next[next.length - 1].node_id);
   }

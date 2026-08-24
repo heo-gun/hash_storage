@@ -207,7 +207,7 @@ export function ForceGraph({
           height={height}
           className="w-full touch-none rounded-md border border-hairline bg-canvas"
           role="img"
-          aria-label="파일 디렉토리 그래프"
+          aria-label="File directory graph"
         />
 
         {hovered && (
@@ -219,7 +219,7 @@ export function ForceGraph({
               <p className="mt-1 font-mono text-[10px] text-ink-subtle">
                 {hovered.hashId ? `${hovered.hashId.slice(0, 12)}…` : "no hash"}
                 {hovered.members.length > 1 &&
-                  ` · ${hovered.members.length}곳에서 참조`}
+                  ` · ${hovered.members.length} refs`}
               </p>
             )}
             {hovered.members.length > 1 && (
@@ -241,8 +241,8 @@ export function ForceGraph({
       <div className="mt-3 flex flex-wrap items-center gap-4 font-mono text-[10px] text-ink-subtle">
         <Legend color={COLOR.folder} label="folder" />
         <Legend color={COLOR.file} label="file" />
-        <Legend color={COLOR.dedup} label="deduped — 여러 부모를 가진 한 노드" />
-        <span className="text-ink-dim">드래그 · 휠 확대 · 폴더 클릭</span>
+        <Legend color={COLOR.dedup} label="deduped — one node, many parents" />
+        <span className="text-ink-dim">drag · scroll to zoom · click a folder</span>
       </div>
     </div>
   );

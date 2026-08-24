@@ -58,7 +58,7 @@ export function PdfCanvas({ data, onError, onLoaded }: Props) {
       } catch (e) {
         if (cancelled) return;
         console.error(e);
-        onError("PDF 를 표시할 수 없습니다.");
+        onError("This PDF could not be displayed.");
         setRendering(false);
       }
     })();

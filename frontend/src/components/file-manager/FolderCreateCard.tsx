@@ -33,7 +33,7 @@ export function FolderCreateCard({
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
         <label className="sr-only" htmlFor="folder-name">
-          폴더 이름
+          Folder name
         </label>
         <input
           id="folder-name"
