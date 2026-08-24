@@ -61,12 +61,31 @@ def assert_recipient(grant: dict, user: dict | None) -> None:
         )
 
 
-def _client_ip() -> str | None:
-    # nginx 뒤에 있으므로 X-Forwarded-For 의 첫 항목이 실제 클라이언트다.
-    fwd = request.headers.get("X-Forwarded-For", "")
+def client_ip_from(headers, remote_addr: str | None) -> str | None:
+    """감사 로그에 남길 클라이언트 IP.
+
+    X-Forwarded-For 의 **첫** 항목을 믿으면 안 된다. nginx 는 클라이언트가 보낸
+    값 뒤에 실제 주소를 덧붙이므로(`$proxy_add_x_forwarded_for`), 첫 항목은
+    요청자가 원하는 대로 적어 넣을 수 있다. 감사 로그가 이 시스템의 실질적
+    방어선이라 위조되면 방어선 자체가 무너진다.
+
+    nginx 가 직접 채우는 X-Real-IP 를 우선 쓰고, 없으면 XFF 의 **마지막** 항목
+    (프록시가 마지막으로 덧붙인 값)을 쓴다.
+    """
+    real = (headers.get("X-Real-IP") or "").strip()
+    if real:
+        return real
+
+    fwd = headers.get("X-Forwarded-For", "")
     if fwd:
-        return fwd.split(",")[0].strip()
-    return request.remote_addr
+        hops = [h.strip() for h in fwd.split(",") if h.strip()]
+        if hops:
+            return hops[-1]
+    return remote_addr
+
+
+def _client_ip() -> str | None:
+    return client_ip_from(request.headers, request.remote_addr)
 
 
 def write_audit(cur, grant_id, action: str, actor_label: str | None = None) -> None:

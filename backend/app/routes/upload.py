@@ -7,6 +7,7 @@ from app.auth.middleware import require_auth
 from app.config import S3_BUCKET_NAME
 from app.db import get_db_connection
 from app.routes import bp
+from app.services.hash_service import HashMismatch, is_valid_hash_id, verify_stream
 from app.services.node_service import VISIBILITIES
 from app.services.user_service import QuotaExceeded, adjust_used_bytes, check_quota
 from app.storage import get_s3_client
@@ -34,15 +35,20 @@ def upload_file():
         return jsonify({"message": "File is required"}), 400
     if not hash_id:
         return jsonify({"message": "Hash ID is required"}), 400
+    if not is_valid_hash_id(hash_id):
+        return jsonify({"message": "hash_id must be 64 lowercase hex characters"}), 400
     if visibility not in VISIBILITIES:
         return jsonify({"message": f"visibility must be one of {VISIBILITIES}"}), 400
 
     original_name = _sanitize_name(name or file.filename or "unnamed")
     mime_type = file.mimetype or "application/octet-stream"
 
-    file.stream.seek(0, 2)
-    size_bytes = file.stream.tell()
-    file.stream.seek(0)
+    # 본문이 정말 그 해시인지 확인한 뒤에야 blob 을 참조하게 한다. 이 검사가 없으면
+    # 남의 파일 해시를 주장해 그 내용을 가져갈 수 있다.
+    try:
+        size_bytes = verify_stream(file.stream, hash_id)
+    except HashMismatch:
+        return jsonify({"message": "Uploaded bytes do not match hash_id"}), 400
 
     s3_key = hash_id
 
@@ -84,7 +90,7 @@ def upload_file():
 
             # blob 존재 여부 확인 (글로벌 dedup)
             cur.execute(
-                "SELECT hash_id, ref_count FROM file_blobs WHERE hash_id = %s",
+                "SELECT hash_id, ref_count, size_bytes FROM file_blobs WHERE hash_id = %s",
                 (hash_id,),
             )
             blob = cur.fetchone()
@@ -127,8 +133,11 @@ def upload_file():
             )
             blob_info = cur.fetchone()
 
-            # 유저 used_bytes 증가 (dedup 여부 무관 — 논리적 사용량 기준)
-            adjust_used_bytes(cur, owner_id, size_bytes)
+            # 유저 used_bytes 증가 (dedup 여부 무관 — 논리적 사용량 기준).
+            # 삭제는 file_blobs.size_bytes 로 빼므로, 더할 때도 blob 에 기록된 크기를
+            # 쓴다. 그러지 않으면 두 경로의 값이 어긋나 사용량을 0 으로 만들 수 있다.
+            charged_bytes = blob["size_bytes"] if blob else size_bytes
+            adjust_used_bytes(cur, owner_id, charged_bytes)
 
             conn.commit()
 

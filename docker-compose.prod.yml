@@ -34,6 +34,10 @@ services:
       # .epf 보호 공유 (Phase 3)
       EPF_MASTER_KEY: ${EPF_MASTER_KEY}
       PUBLIC_BASE_URL: https://${DOMAIN}
+
+      # 프론트엔드가 같은 도메인에서 서빙되므로 그 외 출처는 허용하지 않는다.
+      # (미설정 시 config 기본값이 "*" 라 반드시 명시한다)
+      CORS_ORIGINS: https://${DOMAIN}
     # 포트 외부 노출 없음 (Nginx가 내부 프록시)
     networks:
       - internal
