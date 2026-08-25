@@ -20,6 +20,8 @@ SEED_EMAIL = "bench@seed.local"
 SEED_SUB = "seed-benchmark-user"
 # 시딩한 행만 골라 지울 수 있도록 이름에 접두사를 박는다.
 PREFIX = "bench_"
+# blob 은 이름이 없으므로 mime_type 을 표식으로 쓴다. cleanup 이 이 값만 지운다.
+BENCH_MIME = "application/x-castor-bench"
 
 
 def ensure_user(cur) -> str:
@@ -82,10 +84,10 @@ def seed(files: int, folders: int, depth: int, dup_ratio: float) -> None:
                 cur.execute(
                     """
                     INSERT INTO file_blobs (hash_id, size_bytes, mime_type, s3_key, ref_count)
-                    VALUES (%s, %s, 'application/octet-stream', %s, 0)
+                    VALUES (%s, %s, %s, %s, 0)
                     ON CONFLICT (hash_id) DO NOTHING
                     """,
-                    (digest, size, digest),
+                    (digest, size, BENCH_MIME, digest),
                 )
                 blobs.append((digest, size))
             print(f"고유 blob {len(blobs)}개 생성")
@@ -133,19 +135,22 @@ def seed(files: int, folders: int, depth: int, dup_ratio: float) -> None:
 def cleanup() -> None:
     with connect() as conn:
         with conn.cursor() as cur:
+            # 유저가 이미 지워진 뒤에도 blob 정리는 계속해야 한다. 앞선 실행이
+            # 중간에 끊겼을 때 blob 만 남는 상태가 실제로 생긴다.
             cur.execute("SELECT user_id FROM users WHERE cognito_sub = %s", (SEED_SUB,))
             row = cur.fetchone()
-            if not row:
-                print("시딩 데이터 없음")
-                return
-            # fs_nodes 는 owner CASCADE 로 함께 지워진다.
-            cur.execute("DELETE FROM users WHERE user_id = %s", (row["user_id"],))
+            if row:
+                # fs_nodes 는 owner CASCADE 로 함께 지워진다. 다만 CASCADE 는
+                # file_blobs.ref_count 를 건드리지 않으므로, ref_count 를 조건으로
+                # 삼으면 blob 이 통째로 남는다. 표식(mime_type)으로 지운다.
+                cur.execute("DELETE FROM users WHERE user_id = %s", (row["user_id"],))
             cur.execute(
-                "DELETE FROM file_blobs WHERE hash_id IN "
-                "(SELECT hash_id FROM file_blobs WHERE ref_count = 0 AND s3_key = hash_id)"
+                "DELETE FROM file_blobs WHERE mime_type = %s RETURNING hash_id",
+                (BENCH_MIME,),
             )
+            removed = len(cur.fetchall())
             conn.commit()
-    print("시딩 데이터 삭제 완료")
+    print(f"시딩 데이터 삭제 완료 (blob {removed:,}개)")
 
 
 if __name__ == "__main__":
