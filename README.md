@@ -9,8 +9,10 @@
 ## 1. Core Concepts
 
 **CAS (Content-Addressable Storage)**
-업로드 전 브라우저에서 SHA-256을 계산해 그 값을 주소로 쓴다. 이미 있는 해시면 새로
-저장하지 않고 참조만 추가한다.
+업로드 전 브라우저에서 SHA-256을 계산해 보내고, **서버가 받은 본문을 직접 해싱해
+대조한다.** 값이 일치하고 그 해시가 이미 있으면 새로 저장하지 않고 참조만 추가한다.
+클라이언트가 주장한 해시를 그대로 믿으면 남의 파일을 가리키는 노드를 만들 수 있다
+([docs/DEPLOY.md](docs/DEPLOY.md) 위협 모델 참고).
 
 **VFS + DAG Indexing**
 사용자에게는 폴더 트리로 보이지만 실체는 `fs_nodes` 행이다. 중복 파일은 여러
@@ -31,7 +33,7 @@ PDF·이미지에 한해 콘텐츠 키로 감싼 스트림을 브라우저에서
 | Field | Tech |
 |------|------|
 | Frontend | React 19 + TypeScript + Vite + Tailwind CSS |
-| 클라이언트 해시 | Web Crypto API (`crypto.subtle`, 업로드 전 계산) |
+| 해시 | 클라이언트 Web Crypto API(`crypto.subtle`) + **서버 재계산 대조** (hashlib) |
 | 그래프 뷰 | d3-force |
 | 보호 뷰어 | PDF.js (Canvas 전용, textLayer 없음) |
 | API 통신 | Axios |
@@ -82,7 +84,7 @@ PDF·이미지에 한해 콘텐츠 키로 감싼 스트림을 브라우저에서
 | `GET` | `/health` | — | 헬스 체크 |
 | `GET` | `/auth/me` | 필요 | 내 프로필·쿼터 |
 | `DELETE` | `/auth/me` | 필요 | 계정 하드 삭제 |
-| `POST` | `/files/upload` | 필요 | 업로드 (해시 일치 시 dedup) |
+| `POST` | `/files/upload` | 필요 | 업로드. 서버가 본문 해시를 검증하고(불일치 400) 기존 blob 이면 참조만 추가 |
 | `GET` | `/nodes` | 필요 | 특정 폴더의 자식 목록 |
 | `GET` | `/nodes/tree` | 필요 | 전체 트리 한 번에 (그래프 뷰용) |
 | `GET` | `/nodes/<id>/download` | 필요 | 다운로드 |
@@ -109,14 +111,36 @@ PDF·이미지에 한해 콘텐츠 키로 감싼 스트림을 브라우저에서
 로컬은 MinIO로 S3를 대신한다.
 
 ```bash
-./scripts/dev-up.sh                       # postgres + minio + flask
-npm --prefix frontend run dev             # 5173
-cd backend && python -m pytest            # 정책 판정 테스트
+./scripts/dev-up.sh                       # postgres + minio + backend + frontend
+npm --prefix frontend run dev             # 5173 (개별 실행 시)
+cd backend && python -m pytest            # 65 tests, DB 없이 실행
 ./scripts/dev-down.sh
 ```
 
+### 측정 스크립트
+
+DB 지연과 dedup 실적을 재는 도구. 백엔드 컨테이너 안에서 돌린다(psycopg 가 이미 있다).
+
+```bash
+docker compose cp scripts backend:/scripts
+docker compose exec backend python /scripts/seed_fake_nodes.py --files 100000 --dup-ratio 0.3
+docker compose exec backend python /scripts/benchmark_tree.py --runs 100
+docker compose exec backend python /scripts/dedup_stats.py --per-user
+docker compose exec backend python /scripts/seed_fake_nodes.py --cleanup
+```
+
+- `seed_fake_nodes.py` — 합성 트리 시딩. S3 는 건드리지 않으므로 시딩한 파일은
+  내려받을 수 없다. **로컬 전용이며 프로덕션 DB 에 실행하지 말 것.**
+- `benchmark_tree.py` — 애플리케이션이 실제로 쓰는 쿼리 4종의 p50/p95
+- `dedup_stats.py` — 논리 대비 물리 저장량. 읽기 전용이라 프로덕션에서도 안전하고,
+  `--per-user` 는 `used_bytes` 오차까지 보여준다
+
+측정 결과 예: 노드 103,000개에서 폴더 1단계 조회 p50 0.62 ms, 전체 트리 조회
+p50 145.9 ms (5,000행 상한). 중복률 30% 합성 데이터에서 dedup 1.71x.
+
 **확인해볼 것**
 - 중복 업로드: 같은 파일을 다른 경로에 올려 S3 저장 없이 노드만 느는지
+- 해시 위조: `hash_id` 를 남의 것으로 바꿔 보내면 400 이 나오는지
 - 파일 삭제: `ref_count`가 0이 될 때만 S3 오브젝트가 지워지는지
 - 공유 링크: 수신자를 지정한 링크가 다른 계정에서 거부되는지
 
@@ -198,9 +222,9 @@ hash_storage/
 │   ├── app/
 │   │   ├── auth/          # Cognito 검증, require_auth
 │   │   ├── routes/        # upload, nodes, folders, search, shares, access, auth, admin
-│   │   ├── services/      # node, share, epf, user
+│   │   ├── services/      # hash(업로드 검증), node, share, epf, user
 │   │   └── config.py · db.py · storage.py · blob_deletion.py
-│   ├── tests/             # 공유 정책 판정 (DB 없이 실행)
+│   ├── tests/             # 공유 정책·해시 검증·감사 IP (DB 없이 실행)
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
@@ -217,7 +241,7 @@ hash_storage/
 │   ├── postgres/init/     # 001~007 스키마
 │   ├── minio/
 │   └── nginx/
-├── scripts/               # dev-up.sh · dev-down.sh
+├── scripts/               # dev-up/down · seed_fake_nodes · benchmark_tree · dedup_stats
 ├── docs/DEPLOY.md
 ├── docker-compose.yml · docker-compose.prod.yml
 └── .env.example
